@@ -19,6 +19,10 @@ package status
 import (
 	"context"
 	"fmt"
+	rt "k8s.io/apimachinery/pkg/runtime"
+	"kubeops.dev/ui-server/pkg/graph"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -40,11 +44,31 @@ import (
 	"github.com/kube-bind/kube-bind/pkg/indexers"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	kmc "kmodules.xyz/client-go/client"
 )
 
 const (
 	controllerName = "kube-bind-konnector-cluster-status"
 )
+
+func newClient(cfg *rest.Config) (client.Client, error) {
+	scheme := rt.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+
+	cfg.QPS = 10000
+	cfg.Burst = 10000
+
+	mapper, err := apiutil.NewDynamicRESTMapper(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.New(cfg, client.Options{
+		Scheme: scheme,
+		Mapper: mapper,
+	})
+}
 
 // NewController returns a new controller reconciling status of upstream to downstream.
 func NewController(
@@ -54,6 +78,7 @@ func NewController(
 	consumerDynamicInformer informers.GenericInformer,
 	providerDynamicInformer multinsinformer.GetterInformer,
 	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
+	export *kubebindv1alpha1.APIServiceExport,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
@@ -74,6 +99,11 @@ func NewController(
 		return nil, err
 	}
 
+	consumerKBClient, err := newClient(consumerConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	dynamicConsumerLister := dynamiclister.New(consumerDynamicInformer.Informer().GetIndexer(), gvr)
 	c := &controller{
 		queue: queue,
@@ -90,6 +120,7 @@ func NewController(
 		providerDynamicInformer: providerDynamicInformer,
 
 		serviceNamespaceInformer: serviceNamespaceInformer,
+
 
 		reconciler: reconciler{
 			getServiceNamespace: func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error) {
@@ -116,6 +147,56 @@ func NewController(
 			},
 			deleteProviderObject: func(ctx context.Context, ns, name string) error {
 				return providerClient.Resource(gvr).Namespace(ns).Delete(ctx, name, metav1.DeleteOptions{})
+			},
+			findConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+				providerKBClient, err := newClient(providerConfig)
+				if err != nil {
+					return nil, err
+				}
+				finder := graph.ObjectFinder{
+					Client: providerKBClient,
+				}
+
+				objList := make([]*unstructured.Unstructured, 0)
+
+				for _, con := range export.Spec.Connection {
+					edge := []*graph.Edge{
+						{
+								Src:        obj.GroupVersionKind(),
+								Dst:        con.Target.GroupVersionKind(),
+								Connection: con.ResourceConnectionSpec,
+								Forward:    true,
+						},
+					}
+					objs, err := finder.List(obj, edge)
+					if err != nil {
+						return nil, err
+					}
+					objList = append(objList, objs...)
+				}
+				return objList, nil
+			},
+			getConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+				uns := &unstructured.Unstructured{}
+				uns.SetGroupVersionKind(obj.GroupVersionKind())
+				if err := consumerKBClient.Get(ctx, client.ObjectKey{Name: obj.GetName(), Namespace: obj.GetNamespace()}, uns); err != nil {
+					return nil, err
+				}
+				return uns, nil
+			},
+			createOrPatchConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured, transformFn kmc.TransformFunc) error {
+				_, verb, err := kmc.CreateOrPatch(ctx, consumerKBClient, obj, transformFn)
+				if err != nil {
+					return err
+				}
+				klog.Info("performed: ", verb)
+				return nil
+			},
+			patchConnectedObjectStatus: func(ctx context.Context, obj *unstructured.Unstructured) error {
+				_, _, err := kmc.PatchStatus(ctx, consumerKBClient, obj, func(_ client.Object) client.Object {
+					return obj
+				})
+				return err
 			},
 		},
 	}
@@ -162,6 +243,9 @@ type controller struct {
 	providerDynamicInformer multinsinformer.GetterInformer
 
 	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
+
+	serviceExportLister  bindlisters.APIServiceExportLister
+	serviceExportIndexer cache.Indexer
 
 	reconciler
 }

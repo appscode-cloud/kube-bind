@@ -43,3 +43,8 @@ rules:
   resources:
     - "apiservicenamespaces"
   verbs: ["create","delete","patch","update","get","list","watch"]
+- apiGroups:
+    - ""
+  resources:
+    - "secrets"
+  verbs: ["create","delete","patch","update","get","list","watch"]

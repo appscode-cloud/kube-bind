@@ -119,7 +119,7 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 			export.Spec.Connection = []resourcemeta.ResourceConnection{
 				{
 					Target: metav1.TypeMeta{
-						Kind:       "Service",
+						Kind:       "Secret",
 						APIVersion: "v1",
 					},
 					Labels: []kmapiv1.EdgeLabel{

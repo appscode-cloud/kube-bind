@@ -20,12 +20,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
-
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
+	kmc "kmodules.xyz/client-go/client"
+	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
@@ -37,6 +38,10 @@ type reconciler struct {
 	updateConsumerObjectStatus func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	updateConsumerObject       func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	createConsumerObject       func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	findConnectedObject func(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error)
+	getConnectedObject func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	createOrPatchConnectedObject func(ctx context.Context, obj *unstructured.Unstructured, transformFunc kmc.TransformFunc) error
+	patchConnectedObjectStatus func(ctx context.Context, obj *unstructured.Unstructured) error
 
 	deleteProviderObject func(ctx context.Context, ns, name string) error
 }
@@ -52,9 +57,9 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	ns := obj.GetNamespace()
 	if ns != "" {
 		sn, err := r.getServiceNamespace(ns)
-		if err != nil && !errors.IsNotFound(err) {
+		if err != nil && !kerr.IsNotFound(err) {
 			return err
-		} else if errors.IsNotFound(err) {
+		} else if kerr.IsNotFound(err) {
 			runtime.HandleError(err)
 			return err // hoping the APIServiceNamespace will be created soon. Otherwise, this item goes into backoff.
 		}
@@ -69,7 +74,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		// continue with downstream namespace
 		ns = sn.Name
 	}
-	fmt.Println("service namespace: ", ns)
 
 	if _, found := obj.GetLabels()["provider-created"]; found {
 		downstream, err := r.getConsumerObject(ns, obj.GetName())
@@ -85,6 +89,8 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 				return nil
 			}
 
+
+
 			if foundUpstreamSpec && !reflect.DeepEqual(downstreamSpec, upstreamSpec) {
 				if err := unstructured.SetNestedField(downstream.Object, upstreamSpec, "spec"); err != nil {
 					bs, err := json.Marshal(upstreamSpec)
@@ -99,8 +105,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 					return er
 				}
 			}
-
-
 
 			// upstream status sync with downstream status
 
@@ -126,10 +130,11 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 					return nil // nothing we can do
 				}
 				if _, er := r.updateConsumerObjectStatus(ctx, downstream); er != nil {
+					klog.Error("failed to update consumer object status")
 					return er
 				}
 			}
-		} else if errors.IsNotFound(err) {
+		} else if kerr.IsNotFound(err) {
 			upstream := obj.DeepCopy()
 			upstream.SetUID("")
 			upstream.SetResourceVersion("")
@@ -143,16 +148,33 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 				return er
 			}
 		} else {
+			logger.Error(err, "failed to get downstream consumer object")
 			return err
 		}
+
+
+
+		objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
+		if err != nil {
+			klog.Error("failed to find connected object")
+			return err
+		}
+
+		for _, o := range objList {
+			if err := r.createOrUpdateConsumerObject(context.TODO(), o.DeepCopy()); err != nil {
+				klog.Error("failed to create/update consumer object")
+				return err
+			}
+		}
+		
 		return nil
 	}
 
 	downstream, err := r.getConsumerObject(ns, obj.GetName())
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerr.IsNotFound(err) {
 		logger.Info("failed to get downstream object", "error", err, "downstreamNamespace", ns, "downstreamName", obj.GetName())
 		return err
-	} else if errors.IsNotFound(err) {
+	} else if kerr.IsNotFound(err) {
 		// downstream is gone. Delete upstream too. Note that we cannot rely on the spec controller because
 		// due to konnector restart it might have missed the deletion event.
 		logger.Info("Deleting upstream object because downstream is gone", "downstreamNamespace", ns, "downstreamName", obj.GetName())
@@ -185,4 +207,46 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	}
 
 	return nil
+}
+
+func (r *reconciler) createOrUpdateConsumerObject(ctx context.Context, obj *unstructured.Unstructured) error {
+	curObj, err := r.getConnectedObject(ctx, obj.DeepCopy())
+	if err == nil {
+		data, dataFound, err := unstructured.NestedFieldCopy(obj.Object, "data")
+		if err != nil {
+			return err
+		}
+		if dataFound {
+			if err := unstructured.SetNestedField(curObj.Object, data, "data"); err != nil {
+				return err
+			}
+		}
+
+		spec, specFound, err := unstructured.NestedFieldCopy(obj.Object, "spec")
+		if err != nil {
+			return err
+		}
+		if specFound {
+			if err := unstructured.SetNestedField(curObj.Object, spec, "spec"); err != nil {
+				return err
+			}
+		}
+
+		curObj.SetLabels(obj.GetLabels())
+		curObj.SetAnnotations(obj.GetAnnotations())
+
+		return r.createOrPatchConnectedObject(ctx, curObj.DeepCopy(), func(ob client.Object, createOp bool) client.Object {
+			return curObj
+		})
+	} else if kerr.IsNotFound(err) {
+		return r.createOrPatchConnectedObject(ctx, obj, func(_ client.Object, _ bool) client.Object {
+			obj.SetOwnerReferences(nil)
+			obj.SetUID("")
+			obj.SetResourceVersion("")
+			return obj
+		})
+	} else {
+		klog.Error(err, "failed to get connected object")
+		return err
+	}
 }
