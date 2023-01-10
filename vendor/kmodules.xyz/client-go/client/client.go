@@ -22,12 +22,12 @@ import (
 
 	kmapi "kmodules.xyz/client-go/api/v1"
 	"kmodules.xyz/client-go/tools/clusterid"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/pkg/errors"
 	core "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -94,6 +94,7 @@ func CreateOrPatch(ctx context.Context, c client.Client, obj client.Object, tran
 	if err != nil {
 		return nil, kutil.VerbUnchanged, errors.Wrapf(err, "failed to get GVK for object %T", obj)
 	}
+
 	_, unstructuredObj := obj.(*unstructured.Unstructured)
 
 	var patch client.Patch

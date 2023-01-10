@@ -18,15 +18,16 @@ package shared
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
 	"hash/fnv"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	scannerapi "kubeops.dev/scanner/apis/scanner/v1alpha1"
 
 	cache "github.com/go-pkgz/expirable-cache/v2"
+	passgen "gomodules.xyz/password-generator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kmapi "kmodules.xyz/client-go/api/v1"
 	"kmodules.xyz/client-go/meta"
@@ -43,23 +44,24 @@ func InitImageCache(size int, ttl time.Duration) {
 	Cache = cache.NewCache[string, string]().WithMaxKeys(size).WithTTL(ttl).WithLRU()
 }
 
-func PullSecretsHash(info kmapi.PullSecrets) string {
+func PullSecretsHash(info kmapi.PullCredentials) string {
 	h := fnv.New64a()
 	meta.DeepHashObject(h, info)
 	newHash := strconv.FormatUint(h.Sum64(), 10)
 	return newHash
 }
 
-func SendScanRequest(ctx context.Context, kc client.Client, ref string, info kmapi.PullSecrets) error {
+func SendScanRequest(ctx context.Context, kc client.Client, ref string, info kmapi.PullCredentials) error {
 	obj := scannerapi.ImageScanRequest{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: GenerateName(ref),
+			Name: fmt.Sprintf("%x-%s", md5.Sum([]byte(ref)), passgen.GenerateForCharset(6, passgen.AlphaNum)),
 		},
 		Spec: scannerapi.ImageScanRequestSpec{
-			Image:       ref,
-			Namespace:   info.Namespace,
-			PullSecrets: info.Refs,
+			Image:              ref,
+			Namespace:          info.Namespace,
+			PullSecrets:        info.SecretRefs,
+			ServiceAccountName: info.ServiceAccountName,
 		},
 	}
 	if err := kc.Create(ctx, &obj); err != nil {
@@ -70,17 +72,4 @@ func SendScanRequest(ctx context.Context, kc client.Client, ref string, info kma
 		Cache.Set(ref, PullSecretsHash(info), 0)
 	}
 	return nil
-}
-
-var unsafeNameChars = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
-
-func GenerateName(s string) string {
-	s = unsafeNameChars.ReplaceAllLiteralString(s, "-")
-	s = strings.Trim(s, "-")
-
-	const max = 64 - 8
-	if len(s) < max {
-		return s + "-"
-	}
-	return strings.Trim(s[max:], "-") + "-"
 }
