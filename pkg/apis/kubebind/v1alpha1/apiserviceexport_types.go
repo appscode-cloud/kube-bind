@@ -93,6 +93,10 @@ type APIServiceExportSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="informerScope is immutable"
 	InformerScope Scope                             `json:"informerScope"`
 	Connection    []resourcemeta.ResourceConnection `json:"connection,omitempty"`
+	// If true then the object should be created in consumer side. By default false,
+	// user can't create the object in consumer side.
+	// +optional
+	UserConfigurable bool `json:"userConfigurable"`
 }
 
 type APIServiceExportCRDSpec struct {

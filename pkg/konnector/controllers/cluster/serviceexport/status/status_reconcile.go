@@ -20,12 +20,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
+
+	kmc "kmodules.xyz/client-go/client"
+
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
-	kmc "kmodules.xyz/client-go/client"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
@@ -34,14 +36,15 @@ import (
 type reconciler struct {
 	getServiceNamespace func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error)
 
-	getConsumerObject          func(ns, name string) (*unstructured.Unstructured, error)
-	updateConsumerObjectStatus func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	updateConsumerObject       func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	createConsumerObject       func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	findConnectedObject func(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error)
-	getConnectedObject func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	getConsumerObject            func(ns, name string) (*unstructured.Unstructured, error)
+	updateConsumerObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	updateConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	createConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	findConnectedObject          func(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error)
+	getConnectedObject           func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	createOrPatchConnectedObject func(ctx context.Context, obj *unstructured.Unstructured, transformFunc kmc.TransformFunc) error
-	patchConnectedObjectStatus func(ctx context.Context, obj *unstructured.Unstructured) error
+	patchConnectedObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured) error
+	userConfigurable             func() bool
 
 	deleteProviderObject func(ctx context.Context, ns, name string) error
 }
@@ -75,7 +78,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		ns = sn.Name
 	}
 
-	if _, found := obj.GetLabels()["provider-created"]; found {
+	if !r.userConfigurable() {
 		downstream, err := r.getConsumerObject(ns, obj.GetName())
 		if err == nil {
 			downstreamSpec, _, err := unstructured.NestedFieldNoCopy(downstream.Object, "spec")
@@ -88,8 +91,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 				logger.Error(err, "failed to get upstream spec")
 				return nil
 			}
-
-
 
 			if foundUpstreamSpec && !reflect.DeepEqual(downstreamSpec, upstreamSpec) {
 				if err := unstructured.SetNestedField(downstream.Object, upstreamSpec, "spec"); err != nil {
@@ -152,8 +153,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 			return err
 		}
 
-
-
 		objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
 		if err != nil {
 			klog.Error("failed to find connected object")
@@ -166,7 +165,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 				return err
 			}
 		}
-		
+
 		return nil
 	}
 

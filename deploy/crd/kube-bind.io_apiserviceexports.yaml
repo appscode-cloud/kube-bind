@@ -242,6 +242,11 @@ spec:
                 - Cluster
                 - Namespaced
                 type: string
+              userConfigurable:
+                description: If true then the object should be created in consumer
+                  side. By default false, user can't create the object in consumer
+                  side.
+                type: boolean
               versions:
                 description: "versions is the API version of the defined custom resource.
                   \n Note: the OpenAPI v3 schemas must be equal for all versions until

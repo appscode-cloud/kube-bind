@@ -190,6 +190,7 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 		consumerInf.ForResource(gvr),
 		providerInf,
 		r.serviceNamespaceInformer,
+		export,
 	)
 	if err != nil {
 		runtime.HandleError(err)

@@ -60,6 +60,7 @@ func NewController(
 	consumerDynamicInformer informers.GenericInformer,
 	providerDynamicInformer multinsinformer.GetterInformer,
 	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
+	apiServiceExport *kubebindv1alpha1.APIServiceExport,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
@@ -143,6 +144,9 @@ func NewController(
 				}
 				queue.AddAfter(key, after)
 				return nil
+			},
+			userConfigurable: func() bool {
+				return apiServiceExport.Spec.UserConfigurable
 			},
 		},
 	}

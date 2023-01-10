@@ -131,8 +131,8 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 						Selector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
 								"app.kubernetes.io/instance":   "{.metadata.name}",
-								"app.kubernetes.io/managed-by": "kubedb.com",
-								"app.kubernetes.io/name":       "mongodbs.kubedb.com",
+								"app.kubernetes.io/managed-by": crd.Spec.Group,
+								"app.kubernetes.io/name":       crd.Name,
 							},
 						},
 						Level: resourcemeta.Owner,

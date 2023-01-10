@@ -19,33 +19,34 @@ package status
 import (
 	"context"
 	"fmt"
-	rt "k8s.io/apimachinery/pkg/runtime"
-	"kubeops.dev/ui-server/pkg/graph"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"time"
+
+	kmc "kmodules.xyz/client-go/client"
+	"kubeops.dev/ui-server/pkg/graph"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	rt "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	dynamicclient "k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/client-go/informers"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/indexers"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	kmc "kmodules.xyz/client-go/client"
 )
 
 const (
@@ -78,7 +79,7 @@ func NewController(
 	consumerDynamicInformer informers.GenericInformer,
 	providerDynamicInformer multinsinformer.GetterInformer,
 	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
-	export *kubebindv1alpha1.APIServiceExport,
+	apiServiceExport *kubebindv1alpha1.APIServiceExport,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
@@ -121,7 +122,6 @@ func NewController(
 
 		serviceNamespaceInformer: serviceNamespaceInformer,
 
-
 		reconciler: reconciler{
 			getServiceNamespace: func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error) {
 				sns, err := serviceNamespaceInformer.Informer().GetIndexer().ByIndex(indexers.ServiceNamespaceByNamespace, upstreamNamespace)
@@ -159,13 +159,13 @@ func NewController(
 
 				objList := make([]*unstructured.Unstructured, 0)
 
-				for _, con := range export.Spec.Connection {
+				for _, con := range apiServiceExport.Spec.Connection {
 					edge := []*graph.Edge{
 						{
-								Src:        obj.GroupVersionKind(),
-								Dst:        con.Target.GroupVersionKind(),
-								Connection: con.ResourceConnectionSpec,
-								Forward:    true,
+							Src:        obj.GroupVersionKind(),
+							Dst:        con.Target.GroupVersionKind(),
+							Connection: con.ResourceConnectionSpec,
+							Forward:    true,
 						},
 					}
 					objs, err := finder.List(obj, edge)
@@ -197,6 +197,9 @@ func NewController(
 					return obj
 				})
 				return err
+			},
+			userConfigurable: func() bool {
+				return apiServiceExport.Spec.UserConfigurable
 			},
 		},
 	}
