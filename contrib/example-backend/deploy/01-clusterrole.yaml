@@ -47,4 +47,5 @@ rules:
     - ""
   resources:
     - "secrets"
+    - "services"
   verbs: ["create","delete","patch","update","get","list","watch"]

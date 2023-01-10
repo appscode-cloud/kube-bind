@@ -192,10 +192,8 @@ func NewController(
 				klog.Info("performed: ", verb)
 				return nil
 			},
-			patchConnectedObjectStatus: func(ctx context.Context, obj *unstructured.Unstructured) error {
-				_, _, err := kmc.PatchStatus(ctx, consumerKBClient, obj, func(_ client.Object) client.Object {
-					return obj
-				})
+			patchConnectedObjectStatus: func(ctx context.Context, obj *unstructured.Unstructured, fn kmc.TransformStatusFunc) error {
+				_, _, err := kmc.PatchStatus(ctx, consumerKBClient, obj, fn)
 				return err
 			},
 			userConfigurable: func() bool {

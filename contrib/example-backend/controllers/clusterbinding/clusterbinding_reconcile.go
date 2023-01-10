@@ -155,7 +155,7 @@ func (r *reconciler) ensureRBACClusterRole(ctx context.Context, clusterBinding *
 		})
 		expected.Rules = append(expected.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{""},
-			Resources: []string{"secrets"},
+			Resources: []string{"secrets", "services"},
 			Verbs:     []string{"get", "list", "watch", "update", "patch", "delete", "create"},
 		})
 	}

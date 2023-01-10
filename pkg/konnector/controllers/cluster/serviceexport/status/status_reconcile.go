@@ -43,7 +43,7 @@ type reconciler struct {
 	findConnectedObject          func(ctx context.Context, obj *unstructured.Unstructured) ([]*unstructured.Unstructured, error)
 	getConnectedObject           func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	createOrPatchConnectedObject func(ctx context.Context, obj *unstructured.Unstructured, transformFunc kmc.TransformFunc) error
-	patchConnectedObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured) error
+	patchConnectedObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured, fn kmc.TransformStatusFunc) error
 	userConfigurable             func() bool
 
 	deleteProviderObject func(ctx context.Context, ns, name string) error
@@ -160,8 +160,16 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		}
 
 		for _, o := range objList {
+			klog.Info(o.GetName())
+			klog.Info(o.GetNamespace())
+			klog.Info(o.GetKind())
 			if err := r.createOrUpdateConsumerObject(context.TODO(), o.DeepCopy()); err != nil {
-				klog.Error("failed to create/update consumer object")
+				klog.Errorf("failed to create/update consumer object: %s", err.Error())
+				return err
+			}
+
+			if err := r.patchConsumerObjectStatus(context.TODO(), o.DeepCopy()); err != nil {
+				klog.Errorf("failed to patch consumer object status: %s", err.Error())
 				return err
 			}
 		}
@@ -248,4 +256,28 @@ func (r *reconciler) createOrUpdateConsumerObject(ctx context.Context, obj *unst
 		klog.Error(err, "failed to get connected object")
 		return err
 	}
+}
+
+func (r *reconciler) patchConsumerObjectStatus(ctx context.Context, obj *unstructured.Unstructured) error {
+	curObj, err := r.getConnectedObject(ctx, obj.DeepCopy())
+	if err == nil {
+		status, statusFound, err := unstructured.NestedFieldCopy(obj.Object, "status")
+		if err != nil {
+			return err
+		}
+		if statusFound {
+			if err := unstructured.SetNestedField(curObj.Object, status, "status"); err != nil {
+				return err
+			}
+		} else {
+			return nil // nothing to do in this case
+		}
+
+		return r.patchConnectedObjectStatus(ctx, curObj.DeepCopy(), func(_ client.Object) client.Object {
+			return curObj
+		})
+	} else if !kerr.IsNotFound(err) {
+		return err
+	}
+	return nil
 }
