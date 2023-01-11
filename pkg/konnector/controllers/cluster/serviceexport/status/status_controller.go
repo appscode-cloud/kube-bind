@@ -19,12 +19,14 @@ package status
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"kmodules.xyz/client-go/discovery"
 	"time"
 
 	kmc "kmodules.xyz/client-go/client"
 	"kubeops.dev/ui-server/pkg/graph"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	rt "k8s.io/apimachinery/pkg/runtime"
@@ -80,6 +82,7 @@ func NewController(
 	providerDynamicInformer multinsinformer.GetterInformer,
 	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
 	apiServiceExport *kubebindv1alpha1.APIServiceExport,
+	genericProviderFactory dynamicinformer.DynamicSharedInformerFactory,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
@@ -123,13 +126,23 @@ func NewController(
 		serviceNamespaceInformer: serviceNamespaceInformer,
 
 		reconciler: reconciler{
+			findServiceNamespace: func(ns string) *kubebindv1alpha1.APIServiceNamespace {
+				snsList := serviceNamespaceInformer.Informer().GetIndexer().List()
+				for _, obj := range snsList {
+					sns := obj.(*kubebindv1alpha1.APIServiceNamespace)
+					if sns.Status.Namespace == ns {
+						return sns
+					}
+				}
+				return nil
+			},
 			getServiceNamespace: func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error) {
 				sns, err := serviceNamespaceInformer.Informer().GetIndexer().ByIndex(indexers.ServiceNamespaceByNamespace, upstreamNamespace)
 				if err != nil {
 					return nil, err
 				}
 				if len(sns) == 0 {
-					return nil, errors.NewNotFound(kubebindv1alpha1.SchemeGroupVersion.WithResource("APIServiceNamespace").GroupResource(), upstreamNamespace)
+					return nil, kerr.NewNotFound(kubebindv1alpha1.SchemeGroupVersion.WithResource("APIServiceNamespace").GroupResource(), upstreamNamespace)
 				}
 				return sns[0].(*kubebindv1alpha1.APIServiceNamespace), nil
 			},
@@ -226,7 +239,53 @@ func NewController(
 		},
 	})
 
+	resourceMapper, err := discovery.NewDynamicResourceMapper(providerConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, conn := range apiServiceExport.Spec.Connection {
+		gvr, err := resourceMapper.GVR(conn.Target.GroupVersionKind())
+		if err != nil {
+			return nil, err
+		}
+		genericProviderFactory.ForResource(gvr).Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.reconcileOwnedObject(obj)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.reconcileOwnedObject(newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.reconcileOwnedObject(obj)
+			},
+		})
+	}
+
 	return c, nil
+}
+
+func (c *controller) reconcileOwnedObject(obj interface{}) {
+	unsObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		klog.Error("not an unstructured object")
+		return
+	}
+
+	sns := c.findServiceNamespace(unsObj.GetNamespace())
+	if sns == nil {
+		// object is not under service namespace
+		return
+	}
+
+	owner := unsObj.GetOwnerReferences()
+	if len(owner) != 1 {
+		klog.Errorf("owned object should have one and only one owner. owner: %d", len(owner))
+		return
+	}
+
+	klog.Infof("Reconciling: %s for changing %s of Kind %s",owner[0].Name, unsObj.GetName(), unsObj.GetKind())
+	c.queue.Add(fmt.Sprintf("%s/%s",unsObj.GetNamespace(), owner[0].Name))
 }
 
 // controller reconciles status of upstream to downstream.
@@ -296,7 +355,7 @@ func (c *controller) enqueueConsumer(logger klog.Logger, obj interface{}) {
 	if ns != "" {
 		sn, err := c.serviceNamespaceInformer.Lister().APIServiceNamespaces(ns).Get(name)
 		if err != nil {
-			if !errors.IsNotFound(err) {
+			if !kerr.IsNotFound(err) {
 				runtime.HandleError(err)
 			}
 			return
@@ -424,13 +483,13 @@ func (c *controller) process(ctx context.Context, key string) error {
 	logger := klog.FromContext(ctx)
 
 	obj, err := c.providerDynamicInformer.Get(ns, name)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerr.IsNotFound(err) {
 		return err
-	} else if errors.IsNotFound(err) {
+	} else if kerr.IsNotFound(err) {
 		logger.V(2).Info("Upstream object disappeared")
 
 		downstream, err := c.consumerDynamicLister.Namespace(ns).Get(name)
-		if err != nil && !errors.IsNotFound(err) {
+		if err != nil && !kerr.IsNotFound(err) {
 			return err
 		} else if err == nil {
 			if _, err := c.removeDownstreamFinalizer(ctx, downstream); err != nil {
@@ -462,7 +521,7 @@ func (c *controller) removeDownstreamFinalizer(ctx context.Context, obj *unstruc
 		obj = obj.DeepCopy()
 		obj.SetFinalizers(finalizers)
 		var err error
-		if obj, err = c.consumerClient.Resource(c.gvr).Namespace(obj.GetNamespace()).Update(ctx, obj, metav1.UpdateOptions{}); err != nil && !errors.IsNotFound(err) {
+		if obj, err = c.consumerClient.Resource(c.gvr).Namespace(obj.GetNamespace()).Update(ctx, obj, metav1.UpdateOptions{}); err != nil && !kerr.IsNotFound(err) {
 			return nil, err
 		}
 	}

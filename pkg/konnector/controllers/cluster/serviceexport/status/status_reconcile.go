@@ -34,7 +34,8 @@ import (
 )
 
 type reconciler struct {
-	getServiceNamespace func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error)
+	getServiceNamespace  func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error)
+	findServiceNamespace func(ns string) *kubebindv1alpha1.APIServiceNamespace
 
 	getConsumerObject            func(ns, name string) (*unstructured.Unstructured, error)
 	updateConsumerObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
@@ -160,9 +161,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		}
 
 		for _, o := range objList {
-			klog.Info(o.GetName())
-			klog.Info(o.GetNamespace())
-			klog.Info(o.GetKind())
 			if err := r.createOrUpdateConsumerObject(context.TODO(), o.DeepCopy()); err != nil {
 				klog.Errorf("failed to create/update consumer object: %s", err.Error())
 				return err

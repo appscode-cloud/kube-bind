@@ -196,6 +196,9 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 		runtime.HandleError(err)
 		return nil // nothing we can do here
 	}
+
+	genericProviderFactory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicProviderClient, time.Minute*10)
+
 	statusCtrl, err := status.NewController(
 		gvr,
 		r.providerNamespace,
@@ -205,6 +208,7 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 		providerInf,
 		r.serviceNamespaceInformer,
 		export,
+		genericProviderFactory,
 	)
 	if err != nil {
 		runtime.HandleError(err)
@@ -215,6 +219,7 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 
 	consumerInf.Start(ctx.Done())
 	providerInf.Start(ctx)
+	genericProviderFactory.Start(ctx.Done())
 
 	go func() {
 		// to not block the main thread
