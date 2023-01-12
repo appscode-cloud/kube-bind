@@ -19,6 +19,7 @@ package status
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"kmodules.xyz/client-go/discovery"
 	"time"
@@ -149,6 +150,10 @@ func NewController(
 			getConsumerObject: func(ns, name string) (*unstructured.Unstructured, error) {
 				return dynamicConsumerLister.Namespace(ns).Get(name)
 			},
+			deleteConsumerObject: func(ctx context.Context, obj *unstructured.Unstructured) error {
+				deleteOpts := metav1.DeletePropagationBackground
+				return consumerClient.Resource(gvr).Namespace(obj.GetNamespace()).Delete(ctx, obj.GetName(), metav1.DeleteOptions{PropagationPolicy: &deleteOpts})
+			},
 			updateConsumerObjectStatus: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 				return consumerClient.Resource(gvr).Namespace(obj.GetNamespace()).UpdateStatus(ctx, obj, metav1.UpdateOptions{})
 			},
@@ -156,6 +161,21 @@ func NewController(
 				return consumerClient.Resource(gvr).Namespace(obj.GetNamespace()).Update(ctx, obj, metav1.UpdateOptions{})
 			},
 			createConsumerObject: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+				ns := &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: obj.GetNamespace(),
+					},
+				}
+				err := consumerKBClient.Get(ctx, client.ObjectKey{Name: obj.GetNamespace()}, ns)
+				if err != nil {
+					if kerr.IsNotFound(err) {
+						if e := consumerKBClient.Create(ctx, ns); e != nil {
+							return nil, e
+						}
+					} else {
+						return nil, err
+					}
+				}
 				return consumerClient.Resource(gvr).Namespace(obj.GetNamespace()).Create(ctx, obj, metav1.CreateOptions{})
 			},
 			deleteProviderObject: func(ctx context.Context, ns, name string) error {
@@ -208,6 +228,9 @@ func NewController(
 			patchConnectedObjectStatus: func(ctx context.Context, obj *unstructured.Unstructured, fn kmc.TransformStatusFunc) error {
 				_, _, err := kmc.PatchStatus(ctx, consumerKBClient, obj, fn)
 				return err
+			},
+			deleteConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured) error {
+				 return consumerKBClient.Delete(ctx, obj)
 			},
 			userConfigurable: func() bool {
 				return apiServiceExport.Spec.UserConfigurable

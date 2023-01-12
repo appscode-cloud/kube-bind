@@ -56,6 +56,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		return nil
 	}
 
+
 	ns := obj.GetNamespace()
 	if ns != "" {
 		sn, err := r.getServiceNamespace(ns)

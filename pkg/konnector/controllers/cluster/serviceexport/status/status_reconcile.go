@@ -38,6 +38,7 @@ type reconciler struct {
 	findServiceNamespace func(ns string) *kubebindv1alpha1.APIServiceNamespace
 
 	getConsumerObject            func(ns, name string) (*unstructured.Unstructured, error)
+	deleteConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured)  error
 	updateConsumerObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	updateConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	createConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
@@ -45,6 +46,7 @@ type reconciler struct {
 	getConnectedObject           func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	createOrPatchConnectedObject func(ctx context.Context, obj *unstructured.Unstructured, transformFunc kmc.TransformFunc) error
 	patchConnectedObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured, fn kmc.TransformStatusFunc) error
+	deleteConnectedObject        func(ctx context.Context, obj *unstructured.Unstructured) error
 	userConfigurable             func() bool
 
 	deleteProviderObject func(ctx context.Context, ns, name string) error
@@ -57,8 +59,12 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	klog.Info("Reconciling:", obj.GetNamespace(), "/", obj.GetName())
 
 	obj = obj.DeepCopy()
-
 	ns := obj.GetNamespace()
+
+	if !obj.GetDeletionTimestamp().IsZero() {
+		return r.deleteDownstreamObject(ctx, obj)
+	}
+
 	if ns != "" {
 		sn, err := r.getServiceNamespace(ns)
 		if err != nil && !kerr.IsNotFound(err) {
@@ -80,7 +86,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	}
 
 	if !r.userConfigurable() {
-		downstream, err := r.getConsumerObject(ns, obj.GetName())
+		downstream, err := r.getConsumerObject(obj.GetNamespace(), obj.GetName())
 		if err == nil {
 			downstreamSpec, _, err := unstructured.NestedFieldNoCopy(downstream.Object, "spec")
 			if err != nil {
@@ -140,7 +146,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 			upstream := obj.DeepCopy()
 			upstream.SetUID("")
 			upstream.SetResourceVersion("")
-			upstream.SetNamespace(ns)
 			upstream.SetManagedFields(nil)
 			upstream.SetDeletionTimestamp(nil)
 			upstream.SetDeletionGracePeriodSeconds(nil)
@@ -174,6 +179,8 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 		return nil
 	}
+
+	klog.Info("====================== In status Reconciler =============================")
 
 	downstream, err := r.getConsumerObject(ns, obj.GetName())
 	if err != nil && !kerr.IsNotFound(err) {
@@ -211,6 +218,27 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		}
 	}
 
+	return nil
+}
+
+func (r *reconciler) deleteDownstreamObject(ctx context.Context, obj *unstructured.Unstructured) error {
+	consObj, err := r.getConsumerObject(obj.GetNamespace(), obj.GetName())
+	if err != nil {
+		return err
+	}
+	if err := r.deleteConsumerObject(ctx, consObj); err != nil {
+		return err
+	}
+	objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
+	if err != nil {
+		return err
+	}
+
+	for _, obj := range objList {
+		if err := r.deleteConnectedObject(ctx, obj); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
