@@ -180,8 +180,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		return nil
 	}
 
-	klog.Info("====================== In status Reconciler =============================")
-
 	downstream, err := r.getConsumerObject(ns, obj.GetName())
 	if err != nil && !kerr.IsNotFound(err) {
 		logger.Info("failed to get downstream object", "error", err, "downstreamNamespace", ns, "downstreamName", obj.GetName())

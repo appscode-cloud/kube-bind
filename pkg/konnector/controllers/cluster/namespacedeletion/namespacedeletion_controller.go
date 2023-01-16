@@ -213,6 +213,21 @@ func (c *controller) process(ctx context.Context, key string) error {
 	if _, err := c.getNamespace(name); err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
+		item, found, err := c.serviceNamespaceIndexer.GetByKey(key)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return nil
+		}
+		sns, ok := item.(*kubebindv1alpha1.APIServiceNamespace)
+		if !ok {
+			return nil
+		}
+		if sns.GetLabels()["do-not-delete"] == "true" {
+			return nil
+		}
+
 		if err := c.deleteServiceNamespace(ctx, snsNamespace, name); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
