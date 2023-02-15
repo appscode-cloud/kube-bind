@@ -138,27 +138,27 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 						Level: resourcemeta.Owner,
 					},
 				},
-				{
-					Target: metav1.TypeMeta{
-						Kind:       "Service",
-						APIVersion: "v1",
-					},
-					Labels: []kmapiv1.EdgeLabel{
-						kmapiv1.EdgeExposedBy,
-					},
-					ResourceConnectionSpec: resourcemeta.ResourceConnectionSpec{
-						Type:          resourcemeta.MatchSelector,
-						NamespacePath: "metadata.namespace",
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app.kubernetes.io/instance":   "{.metadata.name}",
-								"app.kubernetes.io/managed-by": crd.Spec.Group,
-								"app.kubernetes.io/name":       crd.Name,
-							},
-						},
-						Level: resourcemeta.Owner,
-					},
-				},
+				//{
+				//	Target: metav1.TypeMeta{
+				//		Kind:       "Service",
+				//		APIVersion: "v1",
+				//	},
+				//	Labels: []kmapiv1.EdgeLabel{
+				//		kmapiv1.EdgeExposedBy,
+				//	},
+				//	ResourceConnectionSpec: resourcemeta.ResourceConnectionSpec{
+				//		Type:          resourcemeta.MatchSelector,
+				//		NamespacePath: "metadata.namespace",
+				//		Selector: &metav1.LabelSelector{
+				//			MatchLabels: map[string]string{
+				//				"app.kubernetes.io/instance":   "{.metadata.name}",
+				//				"app.kubernetes.io/managed-by": crd.Spec.Group,
+				//				"app.kubernetes.io/name":       crd.Name,
+				//			},
+				//		},
+				//		Level: resourcemeta.Owner,
+				//	},
+				//},
 			}
 
 			logger.V(1).Info("Creating APIServiceExport", "name", export.Name, "namespace", export.Namespace)
