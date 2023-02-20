@@ -38,7 +38,7 @@ type reconciler struct {
 	findServiceNamespace func(ns string) *kubebindv1alpha1.APIServiceNamespace
 
 	getConsumerObject            func(ns, name string) (*unstructured.Unstructured, error)
-	deleteConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured)  error
+	deleteConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) error
 	updateConsumerObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	updateConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	createConsumerObject         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
@@ -62,6 +62,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	ns := obj.GetNamespace()
 
 	if !obj.GetDeletionTimestamp().IsZero() {
+		klog.Info("====================== Deleting downstream object ======================")
 		return r.deleteDownstreamObject(ctx, obj)
 	}
 
@@ -220,22 +221,26 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 }
 
 func (r *reconciler) deleteDownstreamObject(ctx context.Context, obj *unstructured.Unstructured) error {
+	klog.Info("================== Deleting connected object =====================")
+	objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
+	if err != nil {
+		return err
+	}
+	klog.Info("Connected object len =========================> :")
+	klog.Info(len(objList))
+	for _, obj := range objList {
+		klog.Infof("=========== Object kind: %s, Name: %s, Namespace: %s", obj.GetKind(), obj.GetName(), obj.GetNamespace())
+		if err := r.deleteConnectedObject(ctx, obj); err != nil {
+			return err
+		}
+	}
+
 	consObj, err := r.getConsumerObject(obj.GetNamespace(), obj.GetName())
 	if err != nil {
 		return err
 	}
 	if err := r.deleteConsumerObject(ctx, consObj); err != nil {
 		return err
-	}
-	objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
-	if err != nil {
-		return err
-	}
-
-	for _, obj := range objList {
-		if err := r.deleteConnectedObject(ctx, obj); err != nil {
-			return err
-		}
 	}
 	return nil
 }

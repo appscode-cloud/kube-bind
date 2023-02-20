@@ -46,7 +46,69 @@ spec:
           spec:
             description: spec specifies the resource.
             properties:
-              connection:
+              group:
+                description: "group is the API group of the defined custom resource.
+                  Empty string means the core API group. \tThe resources are served
+                  under `/apis/<group>/...` or `/api` for the core group."
+                type: string
+              informerScope:
+                description: "informerScope is the scope of the APIServiceExport.
+                  It can be either Cluster or Namespace. \n Cluster:    The konnector
+                  has permission to watch all namespaces at once and cluster-scoped
+                  resources. This is more efficient than watching each namespace individually.
+                  Namespaced: The konnector has permission to watch only single namespaces.
+                  This is more resource intensive. And it means cluster-scoped resources
+                  cannot be exported."
+                enum:
+                - Cluster
+                - Namespaced
+                type: string
+                x-kubernetes-validations:
+                - message: informerScope is immutable
+                  rule: self == oldSelf
+              names:
+                description: names specify the resource and kind names for the custom
+                  resource.
+                properties:
+                  categories:
+                    description: categories is a list of grouped resources this custom
+                      resource belongs to (e.g. 'all'). This is published in API discovery
+                      documents, and used by clients to support invocations like `kubectl
+                      get all`.
+                    items:
+                      type: string
+                    type: array
+                  kind:
+                    description: kind is the serialized kind of the resource. It is
+                      normally CamelCase and singular. Custom resource instances will
+                      use this value as the `kind` attribute in API calls.
+                    type: string
+                  listKind:
+                    description: listKind is the serialized kind of the list for this
+                      resource. Defaults to "`kind`List".
+                    type: string
+                  plural:
+                    description: plural is the plural name of the resource to serve.
+                      The custom resources are served under `/apis/<group>/<version>/.../<plural>`.
+                      Must match the name of the CustomResourceDefinition (in the
+                      form `<names.plural>.<group>`). Must be all lowercase.
+                    type: string
+                  shortNames:
+                    description: shortNames are short names for the resource, exposed
+                      in API discovery documents, and used by clients to support invocations
+                      like `kubectl get <shortname>`. It must be all lowercase.
+                    items:
+                      type: string
+                    type: array
+                  singular:
+                    description: singular is the singular name of the resource. It
+                      must be all lowercase. Defaults to lowercased `kind`.
+                    type: string
+                required:
+                - kind
+                - plural
+                type: object
+              permissionClaims:
                 items:
                   properties:
                     labels:
@@ -167,74 +229,23 @@ spec:
                       - MatchRef
                       - OwnedBy
                       type: string
+                    verbs:
+                      properties:
+                        consumer:
+                          items:
+                            type: string
+                          type: array
+                        provider:
+                          items:
+                            type: string
+                          type: array
+                      type: object
                   required:
                   - labels
                   - target
                   - type
                   type: object
                 type: array
-              group:
-                description: "group is the API group of the defined custom resource.
-                  Empty string means the core API group. \tThe resources are served
-                  under `/apis/<group>/...` or `/api` for the core group."
-                type: string
-              informerScope:
-                description: "informerScope is the scope of the APIServiceExport.
-                  It can be either Cluster or Namespace. \n Cluster:    The konnector
-                  has permission to watch all namespaces at once and cluster-scoped
-                  resources. This is more efficient than watching each namespace individually.
-                  Namespaced: The konnector has permission to watch only single namespaces.
-                  This is more resource intensive. And it means cluster-scoped resources
-                  cannot be exported."
-                enum:
-                - Cluster
-                - Namespaced
-                type: string
-                x-kubernetes-validations:
-                - message: informerScope is immutable
-                  rule: self == oldSelf
-              names:
-                description: names specify the resource and kind names for the custom
-                  resource.
-                properties:
-                  categories:
-                    description: categories is a list of grouped resources this custom
-                      resource belongs to (e.g. 'all'). This is published in API discovery
-                      documents, and used by clients to support invocations like `kubectl
-                      get all`.
-                    items:
-                      type: string
-                    type: array
-                  kind:
-                    description: kind is the serialized kind of the resource. It is
-                      normally CamelCase and singular. Custom resource instances will
-                      use this value as the `kind` attribute in API calls.
-                    type: string
-                  listKind:
-                    description: listKind is the serialized kind of the list for this
-                      resource. Defaults to "`kind`List".
-                    type: string
-                  plural:
-                    description: plural is the plural name of the resource to serve.
-                      The custom resources are served under `/apis/<group>/<version>/.../<plural>`.
-                      Must match the name of the CustomResourceDefinition (in the
-                      form `<names.plural>.<group>`). Must be all lowercase.
-                    type: string
-                  shortNames:
-                    description: shortNames are short names for the resource, exposed
-                      in API discovery documents, and used by clients to support invocations
-                      like `kubectl get <shortname>`. It must be all lowercase.
-                    items:
-                      type: string
-                    type: array
-                  singular:
-                    description: singular is the singular name of the resource. It
-                      must be all lowercase. Defaults to lowercased `kind`.
-                    type: string
-                required:
-                - kind
-                - plural
-                type: object
               scope:
                 description: scope indicates whether the defined custom resource is
                   cluster- or namespace-scoped. Allowed values are `Cluster` and `Namespaced`.
@@ -242,11 +253,6 @@ spec:
                 - Cluster
                 - Namespaced
                 type: string
-              userConfigurable:
-                description: If true then the object should be created in consumer
-                  side. By default false, user can't create the object in consumer
-                  side.
-                type: boolean
               versions:
                 description: "versions is the API version of the defined custom resource.
                   \n Note: the OpenAPI v3 schemas must be equal for all versions until

@@ -41,6 +41,10 @@ func (c *FakeKubeBindV1alpha1) APIServiceExportRequests(namespace string) v1alph
 	return &FakeAPIServiceExportRequests{c, namespace}
 }
 
+func (c *FakeKubeBindV1alpha1) APIServiceExportTemplates() v1alpha1.APIServiceExportTemplateInterface {
+	return &FakeAPIServiceExportTemplates{c}
+}
+
 func (c *FakeKubeBindV1alpha1) APIServiceNamespaces(namespace string) v1alpha1.APIServiceNamespaceInterface {
 	return &FakeAPIServiceNamespaces{c, namespace}
 }

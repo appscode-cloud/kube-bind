@@ -19,14 +19,13 @@ package status
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/dynamic/dynamicinformer"
-	"kmodules.xyz/client-go/discovery"
 	"time"
 
 	kmc "kmodules.xyz/client-go/client"
+	"kmodules.xyz/client-go/discovery"
 	"kubeops.dev/ui-server/pkg/graph"
 
+	corev1 "k8s.io/api/core/v1"
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	dynamicclient "k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/dynamic/dynamiclister"
 	"k8s.io/client-go/informers"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -230,7 +230,7 @@ func NewController(
 				return err
 			},
 			deleteConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured) error {
-				 return consumerKBClient.Delete(ctx, obj)
+				return consumerKBClient.Delete(ctx, obj)
 			},
 			userConfigurable: func() bool {
 				return apiServiceExport.Spec.UserConfigurable
@@ -307,8 +307,8 @@ func (c *controller) reconcileOwnedObject(obj interface{}) {
 		return
 	}
 
-	klog.Infof("Reconciling: %s for changing %s of Kind %s",owner[0].Name, unsObj.GetName(), unsObj.GetKind())
-	c.queue.Add(fmt.Sprintf("%s/%s",unsObj.GetNamespace(), owner[0].Name))
+	klog.Infof("Reconciling: %s for changing %s of Kind %s", owner[0].Name, unsObj.GetName(), unsObj.GetKind())
+	c.queue.Add(fmt.Sprintf("%s/%s", unsObj.GetNamespace(), owner[0].Name))
 }
 
 // controller reconciles status of upstream to downstream.

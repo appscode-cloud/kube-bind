@@ -1,0 +1,26 @@
+apiVersion: kube-bind.io/v1alpha1
+kind: APIServiceExportTemplate
+metadata:
+  name: kubedb-com-mongodbs
+spec:
+  permissionClaims:
+    - target:
+        apiVersion: "v1"
+        kind: "Secret"
+      labels:
+        - exposed_by
+      type: MatchSelector
+      namespacePath: .metadata.namespace
+      selector:
+        matchLabels:
+          "app.kubernetes.io/instance": "{.metadata.name}"
+          "app.kubernetes.io/managed-by": crd.Spec.Group
+          "app.kubernetes.io/name": crd.Name
+      level: Owner
+      verbs:
+        provider:
+          - "*"
+        consumer:
+          - get
+          - list
+          - watch
