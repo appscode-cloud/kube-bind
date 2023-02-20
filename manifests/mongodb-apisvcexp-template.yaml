@@ -1,7 +1,7 @@
 apiVersion: kube-bind.io/v1alpha1
 kind: APIServiceExportTemplate
 metadata:
-  name: kubedb-com-mongodbs
+  name: mongodbs.kubedb.com
 spec:
   permissionClaims:
     - target:
@@ -14,8 +14,8 @@ spec:
       selector:
         matchLabels:
           "app.kubernetes.io/instance": "{.metadata.name}"
-          "app.kubernetes.io/managed-by": crd.Spec.Group
-          "app.kubernetes.io/name": crd.Name
+          "app.kubernetes.io/managed-by": kubedb.com
+          "app.kubernetes.io/name": mongodbs.kubedb.com
       level: Owner
       verbs:
         provider:

@@ -44,8 +44,8 @@ type APIServiceExportTemplateSpec struct {
 }
 
 type PermissionClaimTemplate struct {
-	Connection resourcemeta.ResourceConnection `json:",inline"`
-	Verbs      ClaimResourceVerbTemplate       `json:"verbs"`
+	resourcemeta.ResourceConnection `json:",inline"`
+	Verbs                           ClaimResourceVerbTemplate `json:"verbs"`
 }
 
 type ClaimResourceVerbTemplate struct {

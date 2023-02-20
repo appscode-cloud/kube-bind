@@ -192,7 +192,7 @@ func NewController(
 
 				objList := make([]*unstructured.Unstructured, 0)
 
-				for _, con := range apiServiceExport.Spec.Connection {
+				for _, con := range apiServiceExport.Spec.PermissionClaims {
 					edge := []*graph.Edge{
 						{
 							Src:        obj.GroupVersionKind(),
@@ -232,9 +232,6 @@ func NewController(
 			deleteConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured) error {
 				return consumerKBClient.Delete(ctx, obj)
 			},
-			userConfigurable: func() bool {
-				return apiServiceExport.Spec.UserConfigurable
-			},
 		},
 	}
 
@@ -267,7 +264,7 @@ func NewController(
 		return nil, err
 	}
 
-	for _, conn := range apiServiceExport.Spec.Connection {
+	for _, conn := range apiServiceExport.Spec.PermissionClaims {
 		gvr, err := resourceMapper.GVR(conn.Target.GroupVersionKind())
 		if err != nil {
 			return nil, err

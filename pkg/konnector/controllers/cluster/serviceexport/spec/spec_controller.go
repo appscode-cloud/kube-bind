@@ -138,8 +138,9 @@ func NewController(
 				queue.AddAfter(key, after)
 				return nil
 			},
+			// TODO: function will now exist after full resource sync
 			userConfigurable: func() bool {
-				return apiServiceExport.Spec.UserConfigurable
+				return true
 			},
 		},
 	}

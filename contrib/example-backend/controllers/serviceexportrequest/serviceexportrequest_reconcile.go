@@ -20,9 +20,6 @@ import (
 	"context"
 	"time"
 
-	kmapiv1 "kmodules.xyz/client-go/api/v1"
-	resourcemeta "kmodules.xyz/resource-metadata/apis/meta/v1alpha1"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,9 +35,10 @@ import (
 type reconciler struct {
 	informerScope kubebindv1alpha1.Scope
 
-	getCRD              func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
-	getServiceExport    func(ns, name string) (*kubebindv1alpha1.APIServiceExport, error)
-	createServiceExport func(ctx context.Context, resource *kubebindv1alpha1.APIServiceExport) (*kubebindv1alpha1.APIServiceExport, error)
+	getCRD                      func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
+	getAPIServiceExportTemplate func(ctx context.Context, name string) (*kubebindv1alpha1.APIServiceExportTemplate, error)
+	getServiceExport            func(ns, name string) (*kubebindv1alpha1.APIServiceExport, error)
+	createServiceExport         func(ctx context.Context, resource *kubebindv1alpha1.APIServiceExport) (*kubebindv1alpha1.APIServiceExport, error)
 
 	deleteServiceExportRequest func(ctx context.Context, namespace, name string) error
 }
@@ -116,50 +114,11 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 				},
 			}
 
-			export.Spec.Connection = []resourcemeta.ResourceConnection{
-				{
-					Target: metav1.TypeMeta{
-						Kind:       "Secret",
-						APIVersion: "v1",
-					},
-					Labels: []kmapiv1.EdgeLabel{
-						kmapiv1.EdgeExposedBy,
-					},
-					ResourceConnectionSpec: resourcemeta.ResourceConnectionSpec{
-						Type:          resourcemeta.MatchSelector,
-						NamespacePath: "metadata.namespace",
-						Selector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app.kubernetes.io/instance":   "{.metadata.name}",
-								"app.kubernetes.io/managed-by": crd.Spec.Group,
-								"app.kubernetes.io/name":       crd.Name,
-							},
-						},
-						Level: resourcemeta.Owner,
-					},
-				},
-				//{
-				//	Target: metav1.TypeMeta{
-				//		Kind:       "Service",
-				//		APIVersion: "v1",
-				//	},
-				//	Labels: []kmapiv1.EdgeLabel{
-				//		kmapiv1.EdgeExposedBy,
-				//	},
-				//	ResourceConnectionSpec: resourcemeta.ResourceConnectionSpec{
-				//		Type:          resourcemeta.MatchSelector,
-				//		NamespacePath: "metadata.namespace",
-				//		Selector: &metav1.LabelSelector{
-				//			MatchLabels: map[string]string{
-				//				"app.kubernetes.io/instance":   "{.metadata.name}",
-				//				"app.kubernetes.io/managed-by": crd.Spec.Group,
-				//				"app.kubernetes.io/name":       crd.Name,
-				//			},
-				//		},
-				//		Level: resourcemeta.Owner,
-				//	},
-				//},
+			apiServiceExportTmpl, err := r.getAPIServiceExportTemplate(ctx, crd.Name)
+			if err != nil {
+				return err
 			}
+			export.Spec.PermissionClaims = apiServiceExportTmpl.Spec.PermissionClaims
 
 			logger.V(1).Info("Creating APIServiceExport", "name", export.Name, "namespace", export.Namespace)
 			if _, err = r.createServiceExport(ctx, export); err != nil {

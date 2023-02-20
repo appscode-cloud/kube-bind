@@ -26,14 +26,18 @@ import (
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	rt "k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubernetesclient "k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
@@ -46,6 +50,25 @@ import (
 const (
 	controllerName = "kube-bind-example-backend-serviceexportrequest"
 )
+
+func newClient(cfg *rest.Config) (client.Client, error) {
+	scheme := rt.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = kubebindv1alpha1.AddToScheme(scheme)
+
+	cfg.QPS = 10000
+	cfg.Burst = 10000
+
+	mapper, err := apiutil.NewDynamicRESTMapper(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.New(cfg, client.Options{
+		Scheme: scheme,
+		Mapper: mapper,
+	})
+}
 
 // NewController returns a new controller to reconcile APIServiceExportRequests by
 // creating corresponding APIServiceExports.
@@ -72,6 +95,11 @@ func NewController(
 		return nil, err
 	}
 
+	kbClient, err := newClient(config)
+	if err != nil {
+		return nil, err
+	}
+
 	c := &Controller{
 		queue: queue,
 
@@ -91,6 +119,13 @@ func NewController(
 			informerScope: scope,
 			getCRD: func(name string) (*apiextensionsv1.CustomResourceDefinition, error) {
 				return crdInformer.Lister().Get(name)
+			},
+			getAPIServiceExportTemplate: func(ctx context.Context, name string) (*kubebindv1alpha1.APIServiceExportTemplate, error) {
+				apiServiceExportTmpl := &kubebindv1alpha1.APIServiceExportTemplate{}
+				if err := kbClient.Get(ctx, client.ObjectKey{Name: name}, apiServiceExportTmpl); err != nil {
+					return nil, err
+				}
+				return apiServiceExportTmpl, nil
 			},
 			getServiceExport: func(ns, name string) (*kubebindv1alpha1.APIServiceExport, error) {
 				return serviceExportInformer.Lister().APIServiceExports(ns).Get(name)
