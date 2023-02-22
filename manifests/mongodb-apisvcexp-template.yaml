@@ -10,7 +10,7 @@ spec:
       labels:
         - exposed_by
       type: MatchSelector
-      namespacePath: .metadata.namespace
+      namespacePath: "metadata.namespace"
       selector:
         matchLabels:
           "app.kubernetes.io/instance": "{.metadata.name}"

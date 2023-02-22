@@ -138,8 +138,8 @@ func NewController(
 				queue.AddAfter(key, after)
 				return nil
 			},
-			// TODO: function will now exist after full resource sync
-			userConfigurable: func() bool {
+			// TODO: function will not exist after full resource sync
+			downSync: func() bool {
 				return true
 			},
 		},

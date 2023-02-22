@@ -232,6 +232,9 @@ func NewController(
 			deleteConnectedObject: func(ctx context.Context, obj *unstructured.Unstructured) error {
 				return consumerKBClient.Delete(ctx, obj)
 			},
+			isDownSync: func(gvk schema.GroupVersionKind) bool {
+				return true
+			},
 		},
 	}
 

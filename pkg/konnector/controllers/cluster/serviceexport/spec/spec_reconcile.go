@@ -44,14 +44,14 @@ type reconciler struct {
 
 	updateConsumerObject func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 
-	requeue          func(obj *unstructured.Unstructured, after time.Duration) error
-	userConfigurable func() bool
+	requeue  func(obj *unstructured.Unstructured, after time.Duration) error
+	downSync func() bool
 }
 
 // reconcile syncs downstream objects (metadata and spec) with upstream objects.
 func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructured) error {
 	logger := klog.FromContext(ctx)
-	if !r.userConfigurable() {
+	if r.downSync() {
 		// if the api service export reference object is not user configurable, nothing to do here.
 		return nil
 	}

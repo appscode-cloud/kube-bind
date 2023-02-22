@@ -26,6 +26,7 @@ import (
 
 	kerr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +48,7 @@ type reconciler struct {
 	createOrPatchConnectedObject func(ctx context.Context, obj *unstructured.Unstructured, transformFunc kmc.TransformFunc) error
 	patchConnectedObjectStatus   func(ctx context.Context, obj *unstructured.Unstructured, fn kmc.TransformStatusFunc) error
 	deleteConnectedObject        func(ctx context.Context, obj *unstructured.Unstructured) error
-	userConfigurable             func() bool
+	isDownSync                   func(gvk schema.GroupVersionKind) bool
 
 	deleteProviderObject func(ctx context.Context, ns, name string) error
 }
@@ -62,7 +63,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	ns := obj.GetNamespace()
 
 	if !obj.GetDeletionTimestamp().IsZero() {
-		klog.Info("====================== Deleting downstream object ======================")
 		return r.deleteDownstreamObject(ctx, obj)
 	}
 
@@ -86,7 +86,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		ns = sn.Name
 	}
 
-	if !r.userConfigurable() {
+	if r.isDownSync(obj.GroupVersionKind()) {
 		downstream, err := r.getConsumerObject(obj.GetNamespace(), obj.GetName())
 		if err == nil {
 			downstreamSpec, _, err := unstructured.NestedFieldNoCopy(downstream.Object, "spec")
@@ -162,7 +162,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 		objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
 		if err != nil {
-			klog.Error("failed to find connected object")
+			klog.Errorf("failed to find connected object: %v", err.Error())
 			return err
 		}
 
