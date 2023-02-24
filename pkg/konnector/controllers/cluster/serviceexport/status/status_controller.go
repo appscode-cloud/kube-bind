@@ -54,6 +54,10 @@ import (
 
 const (
 	controllerName = "kube-bind-konnector-cluster-status"
+	permissionGet = "get"
+	permissionList = "list"
+	permissionWatch = "watch"
+	permissionAll = "*"
 )
 
 func newClient(cfg *rest.Config) (client.Client, error) {
@@ -193,6 +197,9 @@ func NewController(
 				objList := make([]*unstructured.Unstructured, 0)
 
 				for _, con := range apiServiceExport.Spec.PermissionClaims {
+					if !hasPermission(con.Verbs.Consumer) {
+						continue
+					}
 					edge := []*graph.Edge{
 						{
 							Src:        obj.GroupVersionKind(),
@@ -286,6 +293,28 @@ func NewController(
 	}
 
 	return c, nil
+}
+
+func hasPermission(claims []string) bool {
+	getPermission := false
+	listPermission := false
+	watchPermission := false
+	allPermission := false
+
+	for _, c := range claims {
+		switch c {
+		case permissionGet:
+			getPermission = true
+		case permissionList:
+			listPermission = true
+		case permissionWatch:
+			watchPermission = true
+		case permissionAll:
+			allPermission = true
+		}
+	}
+
+	return (getPermission && listPermission && watchPermission) || allPermission
 }
 
 func (c *controller) reconcileOwnedObject(obj interface{}) {
