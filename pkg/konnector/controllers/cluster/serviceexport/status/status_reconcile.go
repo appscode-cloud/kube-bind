@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 
 	kmc "kmodules.xyz/client-go/client"
@@ -143,6 +144,25 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 					return er
 				}
 			}
+
+			objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
+			if err != nil {
+				klog.Errorf("failed to find connected object: %v", err.Error())
+				return err
+			}
+
+			for _, o := range objList {
+				if err := r.createOrUpdateConsumerObject(context.TODO(), o.DeepCopy(), downstream.DeepCopy()); err != nil {
+					klog.Errorf("failed to create/update consumer object: %s", err.Error())
+					return err
+				}
+
+				if err := r.patchConsumerObjectStatus(context.TODO(), o.DeepCopy()); err != nil {
+					klog.Errorf("failed to patch consumer object status: %s", err.Error())
+					return err
+				}
+			}
+
 		} else if kerr.IsNotFound(err) {
 			upstream := obj.DeepCopy()
 			upstream.SetUID("")
@@ -159,25 +179,6 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 			logger.Error(err, "failed to get downstream consumer object")
 			return err
 		}
-
-		objList, err := r.findConnectedObject(ctx, obj.DeepCopy())
-		if err != nil {
-			klog.Errorf("failed to find connected object: %v", err.Error())
-			return err
-		}
-
-		for _, o := range objList {
-			if err := r.createOrUpdateConsumerObject(context.TODO(), o.DeepCopy()); err != nil {
-				klog.Errorf("failed to create/update consumer object: %s", err.Error())
-				return err
-			}
-
-			if err := r.patchConsumerObjectStatus(context.TODO(), o.DeepCopy()); err != nil {
-				klog.Errorf("failed to patch consumer object status: %s", err.Error())
-				return err
-			}
-		}
-
 		return nil
 	}
 
@@ -245,7 +246,7 @@ func (r *reconciler) deleteDownstreamObject(ctx context.Context, obj *unstructur
 	return nil
 }
 
-func (r *reconciler) createOrUpdateConsumerObject(ctx context.Context, obj *unstructured.Unstructured) error {
+func (r *reconciler) createOrUpdateConsumerObject(ctx context.Context, obj *unstructured.Unstructured, owner *unstructured.Unstructured) error {
 	curObj, err := r.getConnectedObject(ctx, obj.DeepCopy())
 	if err == nil {
 		data, dataFound, err := unstructured.NestedFieldCopy(obj.Object, "data")
@@ -276,7 +277,14 @@ func (r *reconciler) createOrUpdateConsumerObject(ctx context.Context, obj *unst
 		})
 	} else if kerr.IsNotFound(err) {
 		return r.createOrPatchConnectedObject(ctx, obj, func(_ client.Object, _ bool) client.Object {
-			obj.SetOwnerReferences(nil)
+			obj.SetOwnerReferences([]metav1.OwnerReference{
+				{
+					APIVersion:         owner.GetAPIVersion(),
+					Kind:               owner.GetKind(),
+					Name:               owner.GetName(),
+					UID:                owner.GetUID(),
+				},
+			})
 			obj.SetUID("")
 			obj.SetResourceVersion("")
 			return obj
