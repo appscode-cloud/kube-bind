@@ -37,8 +37,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	kubeclient "k8s.io/client-go/kubernetes"
@@ -65,6 +63,9 @@ type BindOptions struct {
 
 	// skipKonnector skips the deployment of the konnector.
 	SkipKonnector bool
+
+	// The konnector image to use and override default konnector image
+	KonnectorImageOverride string
 
 	// Runner is runs the command. It can be replaced in tests.
 	Runner func(cmd *exec.Cmd) error
@@ -97,6 +98,7 @@ func (b *BindOptions) AddCmdFlags(cmd *cobra.Command) {
 
 	cmd.Flags().BoolVar(&b.SkipKonnector, "skip-konnector", b.SkipKonnector, "Skip the deployment of the konnector")
 	cmd.Flags().BoolVarP(&b.DryRun, "dry-run", "d", b.DryRun, "If true, only print the requests that would be sent to the service provider after authentication, without actually binding.")
+	cmd.Flags().StringVar(&b.KonnectorImageOverride, "konnector-image", b.KonnectorImageOverride, "The konnector image to use")
 }
 
 // Complete ensures all fields are initialized.
@@ -143,17 +145,6 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return err
 	}
 
-	var gvk schema.GroupVersionKind
-	var response runtime.Object
-	auth, err := authenticator.NewDefaultAuthenticator(10*time.Minute, func(ctx context.Context, what schema.GroupVersionKind, obj runtime.Object) error {
-		response = obj
-		gvk = what
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
 	exportURL, err := url.Parse(b.URL)
 	if err != nil {
 		return err // should never happen because we test this in Validate()
@@ -179,19 +170,28 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		}
 		if ns, err = kubeClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 			return err
+		} else {
+			fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kube-bind namespace.\n") // nolint: errcheck
 		}
 	}
-	sessionID := SessionID()
-	if err := b.authenticate(provider, auth.Endpoint(ctx), sessionID, ClusterID(ns), urlCh); err != nil {
-		return err
-	}
 
-	err = auth.Execute(ctx)
+	auth := authenticator.NewLocalhostCallbackAuthenticator()
+	err = auth.Start()
 	fmt.Fprintf(b.Options.ErrOut, "\n\n")
 	if err != nil {
 		return err
-	} else if response == nil {
-		return fmt.Errorf("authentication timeout")
+	}
+
+	sessionID := SessionID()
+	if err := b.authenticate(provider, auth.Endpoint(), sessionID, ClusterID(ns), urlCh); err != nil {
+		return err
+	}
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	response, gvk, err := auth.WaitForResponse(timeoutCtx)
+	if err != nil {
+		return err
 	}
 
 	fmt.Fprintf(b.IOStreams.ErrOut, "🔑 Successfully authenticated to %s\n", exportURL.String()) // nolint: errcheck
@@ -226,18 +226,6 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 			return fmt.Errorf("failed to unmarshal api request #%d: %v", i+1, err)
 		}
 		apiRequests = append(apiRequests, &apiRequest)
-	}
-
-	// create kube-bind namespace
-	// TODO(rikatz): Is this duplicated with line 178?
-	if _, err := kubeClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-bind",
-		},
-	}, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	} else if err == nil {
-		fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kube-bind namespace.\n") // nolint: errcheck
 	}
 
 	// copy kubeconfig into local cluster
@@ -294,6 +282,10 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 				args = append(args, "--"+flag.Name+"="+flag.Value.String())
 			}
 		})
+
+		if b.KonnectorImageOverride != "" {
+			args = append(args, "--konnector-image"+"="+b.KonnectorImageOverride)
+		}
 
 		// TODO: support passing through the base options
 

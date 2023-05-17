@@ -1,0 +1,43 @@
+apiVersion: meta.k8s.appscode.com/v1alpha1
+kind: ResourceOutline
+metadata:
+  creationTimestamp: null
+  labels:
+    k8s.io/group: rbac.authorization.k8s.io
+    k8s.io/kind: ClusterRole
+    k8s.io/resource: clusterroles
+    k8s.io/version: v1
+  name: rbac.authorization.k8s.io-v1-clusterroles
+spec:
+  defaultLayout: true
+  pages:
+  - blocks:
+    - actions:
+        create: Always
+      displayMode: List
+      kind: Connection
+      name: Cluster RoleBindings
+      query:
+        byLabel: id
+        type: GraphQL
+      ref:
+        group: rbac.authorization.k8s.io
+        kind: ClusterRoleBinding
+    - actions:
+        create: Always
+      displayMode: List
+      kind: Connection
+      name: RoleBindings
+      query:
+        byLabel: id
+        type: GraphQL
+      ref:
+        group: rbac.authorization.k8s.io
+        kind: RoleBinding
+    name: Basic
+  resource:
+    group: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: clusterroles
+    scope: Cluster
+    version: v1

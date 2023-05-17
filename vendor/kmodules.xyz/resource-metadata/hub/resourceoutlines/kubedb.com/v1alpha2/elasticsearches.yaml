@@ -1,0 +1,61 @@
+apiVersion: meta.k8s.appscode.com/v1alpha1
+kind: ResourceOutline
+metadata:
+  creationTimestamp: null
+  labels:
+    k8s.io/group: kubedb.com
+    k8s.io/kind: Elasticsearch
+    k8s.io/resource: elasticsearches
+    k8s.io/version: v1alpha2
+  name: kubedb.com-v1alpha2-elasticsearches
+spec:
+  defaultLayout: true
+  pages:
+  - blocks:
+    - kind: Block
+      name: kubedb.com-v1alpha2-elasticsearches
+    name: Basic
+  - blocks:
+    - kind: Block
+      name: kubedb.com-v1alpha2-backups
+    name: Backups
+  - blocks:
+    - kind: Block
+      name: kubedb.com-v1alpha2-security
+    name: Security
+  - blocks:
+    - actions:
+        create: Always
+      displayMode: List
+      kind: Connection
+      name: Recent Operations
+      query:
+        byLabel: ops
+        type: GraphQL
+      ref:
+        group: ops.kubedb.com
+        kind: ElasticsearchOpsRequest
+    - actions:
+        create: Always
+      displayMode: List
+      kind: Connection
+      name: Recommendations
+      query:
+        byLabel: recommended_for
+        type: GraphQL
+      ref:
+        group: supervisor.appscode.com
+        kind: Recommendation
+      view:
+        name: supervisor.appscode.com-v1alpha1-recommendations
+    name: Operations
+  - blocks:
+    - kind: Block
+      name: kubedb.com-v1alpha2-monitoring
+    name: Monitoring
+  resource:
+    group: kubedb.com
+    kind: Elasticsearch
+    name: elasticsearches
+    scope: Namespaced
+    version: v1alpha2

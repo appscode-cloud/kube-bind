@@ -1,0 +1,47 @@
+apiVersion: meta.k8s.appscode.com/v1alpha1
+kind: ResourceTableDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    k8s.io/group: core.k8s.appscode.com
+    k8s.io/kind: ResourceSummary
+    k8s.io/resource: resourcesummaries
+    k8s.io/version: v1alpha1
+  name: core.k8s.appscode.com-v1alpha1-resourcesummaries
+spec:
+  columns:
+  - icon:
+      template: |
+        {{ $apiTypeName := .spec.apiType.name}}
+        {{- printf "https://cdn.appscode.com/k8s/icons/kubedb.com/%s.svg" $apiTypeName -}}
+    name: Database Type
+    pathTemplate: '{{ .spec.apiType.kind }}'
+    priority: 3
+    type: string
+  - name: Instances
+    pathTemplate: '{{ .spec.count | default 0}}'
+    priority: 3
+    textAlign: center
+    type: integer
+  - name: CPU (request/limit)
+    pathTemplate: '{{ if .spec.appResource.requests.cpu }}{{ .spec.appResource.requests.cpu }} / {{ default `*` .spec.appResource.limits.cpu }}{{ end }}'
+    priority: 2
+    textAlign: center
+    type: string
+  - name: Memory (request/limit)
+    pathTemplate: '{{ if .spec.appResource.requests.memory }}{{ .spec.appResource.requests.memory }} / {{ default `*` .spec.appResource.limits.memory }}{{ end }}'
+    priority: 2
+    textAlign: center
+    type: string
+  - name: Storage (request/limit)
+    pathTemplate: '{{ if .spec.appResource.requests.storage }}{{ .spec.appResource.requests.storage }} / {{ default `*` .spec.appResource.limits.storage }}{{ end }}'
+    priority: 2
+    textAlign: center
+    type: string
+  defaultView: true
+  resource:
+    group: core.k8s.appscode.com
+    kind: ResourceSummary
+    name: resourcesummaries
+    scope: Namespaced
+    version: v1alpha1
