@@ -40,11 +40,11 @@ import (
 	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
 	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
 	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/committer"
 	"github.com/kube-bind/kube-bind/pkg/indexers"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -53,33 +53,35 @@ const (
 
 // NewController returns a new controller for ClusterBindings.
 func NewController(
-	consumerSecretRefKey string,
-	providerNamespace string,
+	//consumerSecretRefKey string,
+	//providerNamespace string,
 	heartbeatInterval time.Duration,
-	consumerConfig, providerConfig *rest.Config,
-	clusterBindingInformer bindinformers.ClusterBindingInformer,
+	consumerConfig *rest.Config,
+	//clusterBindingInformer bindinformers.ClusterBindingInformer,
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister],
-	serviceExportInformer bindinformers.APIServiceExportInformer,
-	consumerSecretInformer, providerSecretInformer coreinformers.SecretInformer,
+	//serviceExportInformer bindinformers.APIServiceExportInformer,
+	consumerSecretInformer coreinformers.SecretInformer,
+	//providerSecretInformer coreinformers.SecretInformer,
+	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
-	providerConfig = rest.CopyConfig(providerConfig)
-	providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+	//providerConfig = rest.CopyConfig(providerConfig)
+	//providerConfig = rest.AddUserAgent(providerConfig, controllerName)
 
 	consumerConfig = rest.CopyConfig(consumerConfig)
 	consumerConfig = rest.AddUserAgent(consumerConfig, controllerName)
 
-	providerBindClient, err := bindclient.NewForConfig(providerConfig)
-	if err != nil {
-		return nil, err
-	}
-	providerKubeClient, err := kubernetesclient.NewForConfig(providerConfig)
-	if err != nil {
-		return nil, err
-	}
+	//providerBindClient, err := bindclient.NewForConfig(providerConfig)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//providerKubeClient, err := kubernetesclient.NewForConfig(providerConfig)
+	//if err != nil {
+	//	return nil, err
+	//}
 	consumerBindClient, err := bindclient.NewForConfig(consumerConfig)
 	if err != nil {
 		return nil, err
@@ -92,37 +94,49 @@ func NewController(
 	c := &controller{
 		queue: queue,
 
-		providerBindClient: providerBindClient,
-		providerKubeClient: providerKubeClient,
+		//providerBindClient: providerBindClient,
+		//providerKubeClient: providerKubeClient,
 		consumerBindClient: consumerBindClient,
 		consumerKubeClient: consumerKubeClient,
+		providerInfos:      providerInfos,
 
-		clusterBindingLister:  clusterBindingInformer.Lister(),
-		clusterBindingIndexer: clusterBindingInformer.Informer().GetIndexer(),
+		// .bindInformer.kubebind().v1alpha1.ClusterBinding().Lister()
+		///clusterBindingLister: clusterBindingInformer.Lister(),
+
+		// .bindInformer.kubebind().v1alpha1().ClusterBinding().Informer().GetIndexer()
+		//clusterBindingIndexer: clusterBindingInformer.Informer().GetIndexer(),
 
 		serviceBindingInformer: serviceBindingInformer,
 
-		serviceExportLister:  serviceExportInformer.Lister(),
-		serviceExportIndexer: serviceExportInformer.Informer().GetIndexer(),
+		// .bindInformers.KubeBind().V1alpha1().APISer
+		//serviceExportLister:  serviceExportInformer.Lister(),
+		//serviceExportIndexer: serviceExportInformer.Informer().GetIndexer(),
 
 		consumerSecretLister: consumerSecretInformer.Lister(),
-		providerSecretLister: providerSecretInformer.Lister(),
+		//providerSecretLister: providerSecretInformer.Lister(),
 
 		reconciler: reconciler{
-			consumerSecretRefKey: consumerSecretRefKey,
-			providerNamespace:    providerNamespace,
-			heartbeatInterval:    heartbeatInterval,
+			heartbeatInterval: heartbeatInterval,
+			providerInfos:     providerInfos,
 
-			getProviderSecret: func() (*corev1.Secret, error) {
-				cb, err := clusterBindingInformer.Lister().ClusterBindings(providerNamespace).Get("cluster")
+			getProviderInfo: func(clusterID string) (*konnectormodels.ProviderInfo, error) {
+				for _, provider := range providerInfos {
+					if provider.ClusterID == clusterID {
+						return provider, nil
+					}
+				}
+				return nil, fmt.Errorf(fmt.Sprintf("no provider registered for cluster id: %s in ClusterBinding controller", clusterID))
+			},
+			getProviderSecret: func(provider *konnectormodels.ProviderInfo) (*corev1.Secret, error) {
+				cb, err := provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Lister().ClusterBindings(provider.Namespace).Get("cluster")
 				if err != nil {
 					return nil, err
 				}
 				ref := &cb.Spec.KubeconfigSecretRef
-				return providerSecretInformer.Lister().Secrets(providerNamespace).Get(ref.Name)
+				return provider.KubeInformer.Core().V1().Secrets().Lister().Secrets(provider.Namespace).Get(ref.Name)
 			},
-			getConsumerSecret: func() (*corev1.Secret, error) {
-				ns, name, err := cache.SplitMetaNamespaceKey(consumerSecretRefKey)
+			getConsumerSecret: func(provider *konnectormodels.ProviderInfo) (*corev1.Secret, error) {
+				ns, name, err := cache.SplitMetaNamespaceKey(provider.ConsumerSecretRefKey)
 				if err != nil {
 					return nil, err
 				}
@@ -138,69 +152,76 @@ func NewController(
 
 		commit: committer.NewCommitter[*kubebindv1alpha1.ClusterBinding, *kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus](
 			func(ns string) committer.Patcher[*kubebindv1alpha1.ClusterBinding] {
-				return providerBindClient.KubeBindV1alpha1().ClusterBindings(ns)
+				providerInfo, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
+				if err != nil {
+					klog.Warningf(err.Error())
+					return nil
+				}
+				return providerInfo.BindClient.KubeBindV1alpha1().ClusterBindings(ns)
 			},
 		),
 	}
 
-	clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueClusterBinding(logger, obj)
-		},
-		UpdateFunc: func(_, newObj interface{}) {
-			c.enqueueClusterBinding(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueClusterBinding(logger, obj)
-		},
-	})
+	for _, provider := range providerInfos {
+		provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueClusterBinding(logger, obj)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.enqueueClusterBinding(logger, newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueClusterBinding(logger, obj)
+			},
+		})
 
-	providerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueProviderSecret(logger, obj)
-		},
-		UpdateFunc: func(_, newObj interface{}) {
-			c.enqueueProviderSecret(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueProviderSecret(logger, obj)
-		},
-	})
+		provider.KubeInformer.Core().V1().Secrets().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueProviderSecret(logger, obj, c.providerInfos)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.enqueueProviderSecret(logger, newObj, c.providerInfos)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueProviderSecret(logger, obj, c.providerInfos)
+			},
+		})
 
-	consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueConsumerSecret(logger, obj)
-		},
-		UpdateFunc: func(_, newObj interface{}) {
-			c.enqueueConsumerSecret(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueConsumerSecret(logger, obj)
-		},
-	})
+		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueServiceExport(logger, obj)
+			},
+			UpdateFunc: func(old, newObj interface{}) {
+				oldExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+				if !ok {
+					return
+				}
+				newExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+				if !ok {
+					return
+				}
+				if reflect.DeepEqual(oldExport.Status.Conditions, newExport.Status.Conditions) {
+					return
+				}
+				c.enqueueServiceExport(logger, newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueServiceExport(logger, obj)
+			},
+		})
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueServiceExport(logger, obj)
-		},
-		UpdateFunc: func(old, newObj interface{}) {
-			oldExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
-			if !ok {
-				return
-			}
-			newExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
-			if !ok {
-				return
-			}
-			if reflect.DeepEqual(oldExport.Status.Conditions, newExport.Status.Conditions) {
-				return
-			}
-			c.enqueueServiceExport(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueServiceExport(logger, obj)
-		},
-	})
+		consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.enqueueConsumerSecret(logger, newObj, provider.Namespace, provider.ConsumerSecretRefKey)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
+			},
+		})
+	}
 
 	return c, nil
 }
@@ -212,21 +233,22 @@ type CommitFunc = func(context.Context, *Resource, *Resource) error
 type controller struct {
 	queue workqueue.RateLimitingInterface
 
-	providerBindClient bindclient.Interface
-	providerKubeClient kubernetesclient.Interface
+	//providerBindClient bindclient.Interface
+	//providerKubeClient kubernetesclient.Interface
 	consumerBindClient bindclient.Interface
 	consumerKubeClient kubernetesclient.Interface
 
-	clusterBindingLister  bindlisters.ClusterBindingLister
+	//clusterBindingLister  bindlisters.ClusterBindingLister
 	clusterBindingIndexer cache.Indexer
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 
-	serviceExportLister  bindlisters.APIServiceExportLister
-	serviceExportIndexer cache.Indexer
+	//serviceExportLister  bindlisters.APIServiceExportLister
+	//serviceExportIndexer cache.Indexer
 
 	consumerSecretLister corelisters.SecretLister
-	providerSecretLister corelisters.SecretLister
+	//providerSecretLister corelisters.SecretLister
+	providerInfos []*konnectormodels.ProviderInfo
 
 	reconciler
 
@@ -244,21 +266,21 @@ func (c *controller) enqueueClusterBinding(logger klog.Logger, obj interface{}) 
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj interface{}, providerNamespace, consumerSecretRefKey string) {
 	secretKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
 		return
 	}
 
-	if secretKey == c.consumerSecretRefKey {
-		key := c.providerNamespace + "/cluster"
+	if secretKey == consumerSecretRefKey {
+		key := providerNamespace + "/cluster"
 		logger.V(2).Info("queueing ClusterBinding", "key", key, "reason", "ConsumerSecret", "SecretKey", secretKey)
 		c.queue.Add(key)
 	}
 }
 
-func (c *controller) enqueueProviderSecret(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueProviderSecret(logger klog.Logger, obj interface{}, providerInfos []*konnectormodels.ProviderInfo) {
 	secretKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -270,11 +292,20 @@ func (c *controller) enqueueProviderSecret(logger klog.Logger, obj interface{}) 
 		return
 	}
 
-	if ns != c.providerNamespace {
-		return // not our secret
+	var clusterBindingLister bindlisters.ClusterBindingLister
+
+	for _, info := range providerInfos {
+		if info.Namespace == ns {
+			clusterBindingLister = info.BindInformer.KubeBind().V1alpha1().ClusterBindings().Lister()
+		}
 	}
 
-	binding, err := c.clusterBindingLister.ClusterBindings(ns).Get("cluster")
+	if clusterBindingLister == nil {
+		// no provider namespace matching with this obj ns
+		return
+	}
+
+	binding, err := clusterBindingLister.ClusterBindings(ns).Get("cluster")
 	if err != nil && !errors.IsNotFound(err) {
 		runtime.HandleError(err)
 		return
@@ -323,10 +354,12 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 
 	// start the heartbeat
 	// nolint:errcheck
-	wait.PollInfiniteWithContext(ctx, c.heartbeatInterval/2, func(ctx context.Context) (bool, error) {
-		c.queue.Add(c.providerNamespace + "/cluster")
-		return false, nil
-	})
+	for _, provider := range c.providerInfos {
+		wait.PollInfiniteWithContext(ctx, c.heartbeatInterval/2, func(ctx context.Context) (bool, error) {
+			c.queue.Add(provider.Namespace + "/cluster")
+			return false, nil
+		})
+	}
 
 	<-ctx.Done()
 }
@@ -373,9 +406,23 @@ func (c *controller) process(ctx context.Context, key string) error {
 		return nil // cannot happen by OpenAPI validation
 	}
 
+	var clusterBindingLister bindlisters.ClusterBindingLister
+	var consumerSecretRefKey string
+
+	for _, provider := range c.providerInfos {
+		if provider.Namespace == ns {
+			clusterBindingLister = provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Lister()
+			consumerSecretRefKey = provider.ConsumerSecretRefKey
+			break
+		}
+	}
+	if clusterBindingLister == nil {
+		return fmt.Errorf("can not get any cluster binding informer for cluster binding object of namespace: %s", ns)
+	}
+
 	logger := klog.FromContext(ctx)
 
-	obj, err := c.clusterBindingLister.ClusterBindings(ns).Get("cluster")
+	obj, err := clusterBindingLister.ClusterBindings(ns).Get("cluster")
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -409,23 +456,23 @@ func (c *controller) process(ctx context.Context, key string) error {
 				conditionsapi.ConditionSeverityWarning,
 				"Failed to update service provider ClusterBinding: %v", err,
 			)
-		})
+		}, consumerSecretRefKey)
 	} else {
 		// try to update service bindings
 		c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
 			conditions.MarkTrue(binding, kubebindv1alpha1.APIServiceBindingConditionHeartbeating)
-		})
+		}, consumerSecretRefKey)
 	}
 
 	return utilerrors.NewAggregate(errs)
 }
 
-func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubebindv1alpha1.APIServiceBinding)) {
+func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubebindv1alpha1.APIServiceBinding), consumerSecretRefKey string) {
 	logger := klog.FromContext(ctx)
 
-	objs, err := c.serviceBindingInformer.Informer().GetIndexer().ByIndex(indexers.ByServiceBindingKubeconfigSecret, c.consumerSecretRefKey)
+	objs, err := c.serviceBindingInformer.Informer().GetIndexer().ByIndex(indexers.ByServiceBindingKubeconfigSecret, consumerSecretRefKey)
 	if err != nil {
-		logger.Error(err, "failed to list service bindings", "secretKey", c.consumerSecretRefKey)
+		logger.Error(err, "failed to list service bindings", "secretKey", consumerSecretRefKey)
 		return
 	}
 	for _, obj := range objs {

@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
 	kuberesources "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
@@ -59,6 +60,9 @@ type reconciler struct {
 func (r *reconciler) reconcile(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
 	var errs []error
 
+	if err := r.ensureKubeSystemNSAccess(ctx, clusterBinding); err != nil {
+		errs = append(errs, err)
+	}
 	if err := r.ensureClusterBindingConditions(ctx, clusterBinding); err != nil {
 		errs = append(errs, err)
 	}
@@ -114,6 +118,82 @@ func (r *reconciler) ensureClusterBindingConditions(ctx context.Context, cluster
 		)
 	}
 
+	return nil
+}
+
+func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
+	roleName := "kube-binder-namespace"
+	clusterRole, err := r.getClusterRole(roleName)
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get ClusterRole %s: %w", roleName, err)
+	}
+	ns, err := r.getNamespace(clusterBinding.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed to get Namespace %s: %w", clusterBinding.Namespace, err)
+	}
+
+	expectedRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: roleName,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups:     []string{""},
+				Resources:     []string{"namespaces"},
+				Verbs:         []string{"get"},
+				ResourceNames: []string{"kube-system"},
+			},
+		},
+	}
+	if clusterRole == nil {
+		clusterRole, err = r.createClusterRole(ctx, expectedRole)
+		if err != nil {
+			return err
+		}
+		klog.Infof(fmt.Sprintf("clusterrole %s created", roleName))
+	}
+
+	rbName := roleName + "-" + clusterBinding.Namespace
+
+	expectedRB := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: rbName,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "v1",
+					Kind:       "Namespace",
+					Name:       clusterBinding.Namespace,
+					Controller: pointer.Bool(true),
+					UID:        ns.UID,
+				},
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Namespace: clusterBinding.Namespace,
+				Name:      kuberesources.ServiceAccountName,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			Kind:     "ClusterRole",
+			Name:     roleName,
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+	}
+
+	rb, err := r.getClusterRoleBinding(rbName)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	if rb == nil {
+		rb, err = r.createClusterRoleBinding(ctx, expectedRB)
+		if err != nil {
+			return err
+		}
+		klog.Infof(fmt.Sprintf("clusterrolebinding %s created", rbName))
+
+	}
 	return nil
 }
 

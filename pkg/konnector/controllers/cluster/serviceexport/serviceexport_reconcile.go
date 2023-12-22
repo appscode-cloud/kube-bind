@@ -36,23 +36,25 @@ import (
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/spec"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/status"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 type reconciler struct {
 	// consumerSecretRefKey is the namespace/name value of the APIServiceBinding kubeconfig secret reference.
-	consumerSecretRefKey     string
-	providerNamespace        string
-	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
+	//consumerSecretRefKey     string
+	//providerNamespace        string
+	//serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
 
-	consumerConfig, providerConfig *rest.Config
+	consumerConfig *rest.Config
+	//providerConfig *rest.Config
 
 	lock        sync.Mutex
 	syncContext map[string]syncContext // by CRD name
+
+	providerInfos []*konnectormodels.ProviderInfo
 
 	getCRD            func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
 	getServiceBinding func(name string) (*kubebindv1alpha1.APIServiceBinding, error)
@@ -160,50 +162,51 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 	gvr := runtimeschema.GroupVersionResource{Group: export.Spec.Group, Version: syncVersion, Resource: export.Spec.Names.Plural}
 
 	dynamicConsumerClient := dynamicclient.NewForConfigOrDie(r.consumerConfig)
-	dynamicProviderClient := dynamicclient.NewForConfigOrDie(r.providerConfig)
-
-	providerNamespaceUID := ""
-	if pns, err := dynamicProviderClient.Resource(runtimeschema.GroupVersionResource{
-		Group:    "",
-		Version:  "v1",
-		Resource: "namespaces",
-	}).Get(ctx, r.providerNamespace, metav1.GetOptions{}); err != nil {
-		return err
-	} else {
-		providerNamespaceUID = string(pns.GetUID())
-	}
-
 	consumerInf := dynamicinformer.NewDynamicSharedInformerFactory(dynamicConsumerClient, time.Minute*30)
 
-	var providerInf multinsinformer.GetterInformer
-	if crd.Spec.Scope == apiextensionsv1.ClusterScoped || export.Spec.InformerScope == kubebindv1alpha1.ClusterScope {
-		factory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicProviderClient, time.Minute*30)
-		factory.ForResource(gvr).Lister() // wire the GVR up in the informer factory
-		providerInf = multinsinformer.GetterInformerWrapper{
-			GVR:      gvr,
-			Delegate: factory,
-		}
-	} else {
-		providerInf, err = multinsinformer.NewDynamicMultiNamespaceInformer(
-			gvr,
-			r.providerNamespace,
-			r.providerConfig,
-			r.serviceNamespaceInformer,
-		)
-		if err != nil {
+	for _, provider := range r.providerInfos {
+		dynamicProviderClient := dynamicclient.NewForConfigOrDie(provider.Config)
+
+		if pns, err := dynamicProviderClient.Resource(runtimeschema.GroupVersionResource{
+			Group:    "",
+			Version:  "v1",
+			Resource: "namespaces",
+		}).Get(ctx, provider.Namespace, metav1.GetOptions{}); err != nil {
 			return err
+		} else {
+			provider.NamespaceUID = string(pns.GetUID())
+		}
+
+		if crd.Spec.Scope == apiextensionsv1.ClusterScoped || export.Spec.InformerScope == kubebindv1alpha1.ClusterScope {
+			factory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicProviderClient, time.Minute*30)
+			factory.ForResource(gvr).Lister() // wire the GVR up in the informer factory
+			provider.ProviderDynamicInformer = multinsinformer.GetterInformerWrapper{
+				GVR:      gvr,
+				Delegate: factory,
+			}
+		} else {
+			provider.ProviderDynamicInformer, err = multinsinformer.NewDynamicMultiNamespaceInformer(
+				gvr,
+				provider.Namespace,
+				provider.Config,
+				provider.DynamicServiceNamespaceInformer,
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	specCtrl, err := spec.NewController(
 		gvr,
-		r.providerNamespace,
-		providerNamespaceUID,
+		//provider.Namespace,
+		//providerNamespaceUID,
 		r.consumerConfig,
-		r.providerConfig,
+		//provider.Config,
 		consumerInf.ForResource(gvr),
-		providerInf,
-		r.serviceNamespaceInformer,
+		//providerInf,
+		//provider.DynamicServiceNamespaceInformer,
+		r.providerInfos,
 	)
 	if err != nil {
 		runtime.HandleError(err)
@@ -211,13 +214,14 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 	}
 	statusCtrl, err := status.NewController(
 		gvr,
-		r.providerNamespace,
-		providerNamespaceUID,
+		//provider.Namespace,
+		//providerNamespaceUID,
 		r.consumerConfig,
-		r.providerConfig,
+		//provider.Config,
 		consumerInf.ForResource(gvr),
-		providerInf,
-		r.serviceNamespaceInformer,
+		//providerInf,
+		//provider.DynamicServiceNamespaceInformer,
+		r.providerInfos,
 	)
 	if err != nil {
 		runtime.HandleError(err)
@@ -227,15 +231,19 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 	ctx, cancel := context.WithCancel(ctx)
 
 	consumerInf.Start(ctx.Done())
-	providerInf.Start(ctx)
+	for _, provider := range r.providerInfos {
+		provider.ProviderDynamicInformer.Start(ctx)
+	}
 
 	go func() {
 		// to not block the main thread
 		consumerSynced := consumerInf.WaitForCacheSync(ctx.Done())
 		logger.V(2).Info("Synced informers", "consumer", consumerSynced)
 
-		providerSynced := providerInf.WaitForCacheSync(ctx.Done())
-		logger.V(2).Info("Synced informers", "provider", providerSynced)
+		for _, provider := range r.providerInfos {
+			providerSynced := provider.ProviderDynamicInformer.WaitForCacheSync(ctx.Done())
+			logger.V(2).Info("Synced informers", "provider", providerSynced)
+		}
 
 		go specCtrl.Start(ctx, 1)
 		go statusCtrl.Start(ctx, 1)

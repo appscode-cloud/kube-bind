@@ -59,33 +59,33 @@ spec:
             description: spec specifies how an API service from a service provider
               should be bound in the local consumer cluster.
             properties:
-              kubeconfigSecretRef:
+              kubeconfigSecretRefs:
                 description: kubeconfigSecretName is the secret ref that contains
                   the kubeconfig of the service cluster.
-                properties:
-                  key:
-                    description: The key of the secret to select from.  Must be "kubeconfig".
-                    enum:
-                    - kubeconfig
-                    type: string
-                  name:
-                    description: Name of the referent.
-                    minLength: 1
-                    type: string
-                  namespace:
-                    description: Namespace of the referent.
-                    minLength: 1
-                    type: string
-                required:
-                - key
-                - name
-                - namespace
-                type: object
-                x-kubernetes-validations:
-                - message: kubeconfigSecretRef is immutable
-                  rule: self == oldSelf
+                items:
+                  properties:
+                    key:
+                      description: The key of the secret to select from.  Must be
+                        "kubeconfig".
+                      enum:
+                      - kubeconfig
+                      type: string
+                    name:
+                      description: Name of the referent.
+                      minLength: 1
+                      type: string
+                    namespace:
+                      description: Namespace of the referent.
+                      minLength: 1
+                      type: string
+                  required:
+                  - key
+                  - name
+                  - namespace
+                  type: object
+                type: array
             required:
-            - kubeconfigSecretRef
+            - kubeconfigSecretRefs
             type: object
           status:
             description: status contains reconciliation information for a service
@@ -137,10 +137,35 @@ spec:
                   - type
                   type: object
                 type: array
+              kubeconfigs:
+                items:
+                  properties:
+                    key:
+                      description: The key of the secret to select from.  Must be
+                        "kubeconfig".
+                      enum:
+                      - kubeconfig
+                      type: string
+                    name:
+                      description: Name of the referent.
+                      minLength: 1
+                      type: string
+                    namespace:
+                      description: Namespace of the referent.
+                      minLength: 1
+                      type: string
+                  required:
+                  - key
+                  - name
+                  - namespace
+                  type: object
+                type: array
               providerPrettyName:
                 description: providerPrettyName is the pretty name of the service
                   provider cluster. This can be shared among different APIServiceBindings.
-                type: string
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

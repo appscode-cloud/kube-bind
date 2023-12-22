@@ -26,24 +26,33 @@ import (
 	"k8s.io/klog/v2"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 type reconciler struct {
-	getServiceNamespace func(upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error)
+	getProviderInfo func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error)
 
-	getConsumerObject          func(ns, name string) (*unstructured.Unstructured, error)
-	updateConsumerObjectStatus func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	getServiceNamespace func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error)
 
-	deleteProviderObject func(ctx context.Context, ns, name string) error
+	getConsumerObject          func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error)
+	updateConsumerObjectStatus func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+
+	deleteProviderObject func(ctx context.Context, provider *konnectormodels.ProviderInfo, ns, name string) error
 }
 
 // reconcile syncs upstream status to consumer objects.
 func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructured) error {
 	logger := klog.FromContext(ctx)
 
+	provider, err := r.getProviderInfo(obj)
+	if err != nil {
+		klog.Errorf("failed to get provider information. ", err.Error())
+		return err
+	}
+
 	ns := obj.GetNamespace()
 	if ns != "" {
-		sn, err := r.getServiceNamespace(ns)
+		sn, err := r.getServiceNamespace(provider, ns)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if errors.IsNotFound(err) {
@@ -62,7 +71,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		ns = sn.Name
 	}
 
-	downstream, err := r.getConsumerObject(ns, obj.GetName())
+	downstream, err := r.getConsumerObject(provider, ns, obj.GetName())
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Info("failed to get downstream object", "error", err, "downstreamNamespace", ns, "downstreamName", obj.GetName())
 		return err
@@ -70,7 +79,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		// downstream is gone. Delete upstream too. Note that we cannot rely on the spec controller because
 		// due to konnector restart it might have missed the deletion event.
 		logger.Info("Deleting upstream object because downstream is gone", "downstreamNamespace", ns, "downstreamName", obj.GetName())
-		if err := r.deleteProviderObject(ctx, obj.GetNamespace(), obj.GetName()); err != nil {
+		if err := r.deleteProviderObject(ctx, provider, obj.GetNamespace(), obj.GetName()); err != nil {
 			return err
 		}
 		return nil
@@ -93,7 +102,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	}
 	if !reflect.DeepEqual(orig, downstream) {
 		logger.Info("Updating downstream object status")
-		if _, err := r.updateConsumerObjectStatus(ctx, downstream); err != nil {
+		if _, err := r.updateConsumerObjectStatus(ctx, provider, downstream); err != nil {
 			return err
 		}
 	}

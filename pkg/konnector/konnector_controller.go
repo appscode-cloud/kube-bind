@@ -44,6 +44,7 @@ import (
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/servicebinding"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -97,16 +98,21 @@ func New(
 			getSecret: func(ns, name string) (*corev1.Secret, error) {
 				return secretInformer.Lister().Secrets(ns).Get(name)
 			},
-			newClusterController: func(consumerSecretRefKey, providerNamespace string, reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool, providerConfig *rest.Config) (startable, error) {
-				providerConfig = rest.CopyConfig(providerConfig)
-				providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+			//providerInfos: make([]*konnectormodels.ProviderInfo, 0),
+			providerInfos: make([]*konnectormodels.ProviderInfo, 0),
+			newClusterController: func(providerInfos []*konnectormodels.ProviderInfo, reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool) (startable, error) {
+				//providerConfig = rest.CopyConfig(providerConfig)
+				//providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+
+				for _, provider := range providerInfos {
+					provider.Config = rest.CopyConfig(provider.Config)
+					provider.Config = rest.AddUserAgent(provider.Config, controllerName)
+				}
 
 				return cluster.NewController(
-					consumerSecretRefKey,
-					providerNamespace,
 					reconcileServiceBinding,
 					consumerConfig,
-					providerConfig,
+					providerInfos,
 					namespaceDynamicInformer,
 					serviceBindingDynamicInformer,
 					crdDynamicInformer,
