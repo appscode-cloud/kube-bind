@@ -40,7 +40,8 @@ import (
 )
 
 const (
-	konnectorImage = "ghcr.io/kube-bind/konnector"
+	//konnectorImage = "ghcr.io/kube-bind/konnector"
+	konnectorImage = "superm4n/konnector"
 )
 
 // nolint: unused
@@ -126,6 +127,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 		} else {
 			fmt.Fprint(b.Options.IOStreams.ErrOut, ".") // nolint: errcheck
 		}
+
 		return false, nil
 	})
 }

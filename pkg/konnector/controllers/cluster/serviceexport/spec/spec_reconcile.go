@@ -29,18 +29,20 @@ import (
 	"k8s.io/klog/v2"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 type reconciler struct {
-	providerNamespace string
+	//providerNamespace string
 
-	getServiceNamespace    func(name string) (*kubebindv1alpha1.APIServiceNamespace, error)
-	createServiceNamespace func(ctx context.Context, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error)
+	getProviderInfo        func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error)
+	getServiceNamespace    func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error)
+	createServiceNamespace func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error)
 
-	getProviderObject    func(ns, name string) (*unstructured.Unstructured, error)
-	createProviderObject func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	updateProviderObject func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	deleteProviderObject func(ctx context.Context, ns, name string) error
+	getProviderObject    func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error)
+	createProviderObject func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	updateProviderObject func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	deleteProviderObject func(ctx context.Context, provider *konnectormodels.ProviderInfo, ns, name string) error
 
 	updateConsumerObject func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 
@@ -51,17 +53,23 @@ type reconciler struct {
 func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructured) error {
 	logger := klog.FromContext(ctx)
 
+	provider, err := r.getProviderInfo(obj)
+	if err != nil {
+		klog.Errorf("failed to get provider information. ", err.Error())
+		return err
+	}
+
 	ns := obj.GetNamespace()
 	if ns != "" {
-		sn, err := r.getServiceNamespace(ns)
+		sn, err := r.getServiceNamespace(provider, ns)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if errors.IsNotFound(err) {
 			logger.V(1).Info("creating APIServiceNamespace", "namespace", ns)
-			sn, err = r.createServiceNamespace(ctx, &kubebindv1alpha1.APIServiceNamespace{
+			sn, err = r.createServiceNamespace(ctx, provider, &kubebindv1alpha1.APIServiceNamespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      ns,
-					Namespace: r.providerNamespace,
+					Namespace: provider.Namespace,
 				},
 			})
 			if err != nil {
@@ -81,7 +89,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		ns = sn.Status.Namespace
 	}
 
-	upstream, err := r.getProviderObject(ns, obj.GetName())
+	upstream, err := r.getProviderObject(provider, ns, obj.GetName())
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -112,7 +120,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		unstructured.RemoveNestedField(upstream.Object, "status")
 
 		logger.Info("Creating upstream object")
-		if _, err := r.createProviderObject(ctx, upstream); err != nil && !errors.IsAlreadyExists(err) {
+		if _, err := r.createProviderObject(ctx, provider, upstream); err != nil && !errors.IsAlreadyExists(err) {
 			return err
 		} else if errors.IsAlreadyExists(err) {
 			logger.Info("Upstream object already exists. Waiting for requeue.") // the upstream object will lead to a requeue
@@ -128,7 +136,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		}
 
 		logger.V(1).Info("object is already deleting downstream, deleting upstream too")
-		if err := r.deleteProviderObject(ctx, ns, obj.GetName()); err != nil && !errors.IsNotFound(err) {
+		if err := r.deleteProviderObject(ctx, provider, ns, obj.GetName()); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 
@@ -176,7 +184,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	logger.Info("Updating upstream object")
 	upstream.SetManagedFields(nil) // server side apply does not want this
-	if _, err := r.updateProviderObject(ctx, upstream); err != nil {
+	if _, err := r.updateProviderObject(ctx, provider, upstream); err != nil {
 		return err
 	}
 

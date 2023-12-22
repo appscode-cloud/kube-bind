@@ -29,10 +29,14 @@ func IndexServiceBindingByKubeconfigSecret(obj interface{}) ([]string, error) {
 	if !ok {
 		return nil, nil
 	}
-	return []string{ByServiceBindingKubeconfigSecretKey(binding)}, nil
+	return ByServiceBindingKubeconfigSecretKey(binding), nil
 }
 
-func ByServiceBindingKubeconfigSecretKey(binding *kubebindv1alpha1.APIServiceBinding) string {
-	ref := &binding.Spec.KubeconfigSecretRef
-	return ref.Namespace + "/" + ref.Name
+func ByServiceBindingKubeconfigSecretKey(binding *kubebindv1alpha1.APIServiceBinding) []string {
+	refs := binding.Spec.KubeconfigSecretRefs
+	var secretRefs []string
+	for _, ref := range refs {
+		secretRefs = append(secretRefs, ref.Namespace+"/"+ref.Name)
+	}
+	return secretRefs
 }

@@ -46,89 +46,92 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 }
 
 func (r *reconciler) ensureValidKubeconfigSecret(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
-	secret, err := r.getConsumerSecret(binding.Spec.KubeconfigSecretRef.Namespace, binding.Spec.KubeconfigSecretRef.Name)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	} else if errors.IsNotFound(err) {
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.APIServiceBindingConditionSecretValid,
-			"KubeconfigSecretNotFound",
-			conditionsapi.ConditionSeverityError,
-			"Kubeconfig secret %s/%s not found. Rerun kubectl bind for repair.",
-			binding.Spec.KubeconfigSecretRef.Namespace, binding.Spec.KubeconfigSecretRef.Name,
-		)
-		return nil
-	}
+	for _, ref := range binding.Spec.KubeconfigSecretRefs {
 
-	kubeconfig, found := secret.Data[binding.Spec.KubeconfigSecretRef.Key]
-	if !found {
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.APIServiceBindingConditionSecretValid,
-			"KubeconfigSecretInvalid",
-			conditionsapi.ConditionSeverityError,
-			"Kubeconfig secret %s/%s is missing %q string key.",
-			binding.Spec.KubeconfigSecretRef.Namespace,
-			binding.Spec.KubeconfigSecretRef.Name,
-			binding.Spec.KubeconfigSecretRef.Key,
-		)
-		return nil
-	}
+		secret, err := r.getConsumerSecret(ref.Namespace, ref.Name)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		} else if errors.IsNotFound(err) {
+			conditions.MarkFalse(
+				binding,
+				kubebindv1alpha1.APIServiceBindingConditionSecretValid,
+				"KubeconfigSecretNotFound",
+				conditionsapi.ConditionSeverityError,
+				"Kubeconfig secret %s/%s not found. Rerun kubectl bind for repair.",
+				ref.Namespace, ref.Name,
+			)
+			return nil
+		}
 
-	cfg, err := clientcmd.Load(kubeconfig)
-	if err != nil {
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.APIServiceBindingConditionSecretValid,
-			"KubeconfigSecretInvalid",
-			conditionsapi.ConditionSeverityError,
-			"Kubeconfig secret %s/%s has an invalid kubeconfig: %v",
-			binding.Spec.KubeconfigSecretRef.Namespace,
-			binding.Spec.KubeconfigSecretRef.Name,
-			err,
-		)
-		return nil
-	}
-	kubeContext, found := cfg.Contexts[cfg.CurrentContext]
-	if !found {
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.APIServiceBindingConditionSecretValid,
-			"KubeconfigSecretInvalid",
-			conditionsapi.ConditionSeverityError,
-			"Kubeconfig secret %s/%s has an invalid kubeconfig: current context %q not found",
-			binding.Spec.KubeconfigSecretRef.Namespace,
-			binding.Spec.KubeconfigSecretRef.Name,
-			cfg.CurrentContext,
-		)
-		return nil
-	}
-	if kubeContext.Namespace == "" {
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.APIServiceBindingConditionSecretValid,
-			"KubeconfigSecretInvalid",
-			conditionsapi.ConditionSeverityError,
-			"Kubeconfig secret %s/%s has an invalid kubeconfig: current context %q has no namespace set",
-			binding.Spec.KubeconfigSecretRef.Namespace,
-			binding.Spec.KubeconfigSecretRef.Name,
-			cfg.CurrentContext,
-		)
-		return nil
-	}
-	if _, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfig)); err != nil {
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.APIServiceBindingConditionSecretValid,
-			"KubeconfigSecretInvalid",
-			conditionsapi.ConditionSeverityError,
-			"Kubeconfig secret %s/%s has an invalid kubeconfig: %v",
-			binding.Spec.KubeconfigSecretRef.Namespace,
-			binding.Spec.KubeconfigSecretRef.Name,
-			err,
-		)
-		return nil
+		kubeconfig, found := secret.Data[ref.Key]
+		if !found {
+			conditions.MarkFalse(
+				binding,
+				kubebindv1alpha1.APIServiceBindingConditionSecretValid,
+				"KubeconfigSecretInvalid",
+				conditionsapi.ConditionSeverityError,
+				"Kubeconfig secret %s/%s is missing %q string key.",
+				ref.Namespace,
+				ref.Name,
+				ref.Key,
+			)
+			return nil
+		}
+
+		cfg, err := clientcmd.Load(kubeconfig)
+		if err != nil {
+			conditions.MarkFalse(
+				binding,
+				kubebindv1alpha1.APIServiceBindingConditionSecretValid,
+				"KubeconfigSecretInvalid",
+				conditionsapi.ConditionSeverityError,
+				"Kubeconfig secret %s/%s has an invalid kubeconfig: %v",
+				ref.Namespace,
+				ref.Name,
+				err,
+			)
+			return nil
+		}
+		kubeContext, found := cfg.Contexts[cfg.CurrentContext]
+		if !found {
+			conditions.MarkFalse(
+				binding,
+				kubebindv1alpha1.APIServiceBindingConditionSecretValid,
+				"KubeconfigSecretInvalid",
+				conditionsapi.ConditionSeverityError,
+				"Kubeconfig secret %s/%s has an invalid kubeconfig: current context %q not found",
+				ref.Namespace,
+				ref.Name,
+				cfg.CurrentContext,
+			)
+			return nil
+		}
+		if kubeContext.Namespace == "" {
+			conditions.MarkFalse(
+				binding,
+				kubebindv1alpha1.APIServiceBindingConditionSecretValid,
+				"KubeconfigSecretInvalid",
+				conditionsapi.ConditionSeverityError,
+				"Kubeconfig secret %s/%s has an invalid kubeconfig: current context %q has no namespace set",
+				ref.Namespace,
+				ref.Name,
+				cfg.CurrentContext,
+			)
+			return nil
+		}
+		if _, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeconfig)); err != nil {
+			conditions.MarkFalse(
+				binding,
+				kubebindv1alpha1.APIServiceBindingConditionSecretValid,
+				"KubeconfigSecretInvalid",
+				conditionsapi.ConditionSeverityError,
+				"Kubeconfig secret %s/%s has an invalid kubeconfig: %v",
+				ref.Namespace,
+				ref.Name,
+				err,
+			)
+			return nil
+		}
 	}
 
 	conditions.MarkTrue(

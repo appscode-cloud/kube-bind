@@ -31,26 +31,28 @@ import (
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 	"github.com/kube-bind/kube-bind/pkg/version"
 )
 
 type reconciler struct {
-	// consumerSecretRefKey is the namespace/name value of the APIServiceBinding kubeconfig secret reference.
-	consumerSecretRefKey string
-	providerNamespace    string
-	heartbeatInterval    time.Duration
+	heartbeatInterval time.Duration
 
-	getProviderSecret    func() (*corev1.Secret, error)
-	getConsumerSecret    func() (*corev1.Secret, error)
+	getProviderSecret    func(porvider *konnectormodels.ProviderInfo) (*corev1.Secret, error)
+	getConsumerSecret    func(provider *konnectormodels.ProviderInfo) (*corev1.Secret, error)
 	updateConsumerSecret func(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error)
+	getProviderInfo      func(clusterID string) (*konnectormodels.ProviderInfo, error)
 	createConsumerSecret func(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error)
+	providerInfos        []*konnectormodels.ProviderInfo
 }
 
 func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding) error {
 	var errs []error
 
-	if err := r.ensureConsumerSecret(ctx, binding); err != nil {
-		errs = append(errs, err)
+	for _, provider := range r.providerInfos {
+		if err := r.ensureConsumerSecret(ctx, binding, provider); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	if err := r.ensureHeartbeat(ctx, binding); err != nil {
@@ -75,10 +77,10 @@ func (r *reconciler) ensureHeartbeat(ctx context.Context, binding *kubebindv1alp
 	return nil
 }
 
-func (r *reconciler) ensureConsumerSecret(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding) error {
+func (r *reconciler) ensureConsumerSecret(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding, provider *konnectormodels.ProviderInfo) error {
 	logger := klog.FromContext(ctx)
 
-	providerSecret, err := r.getProviderSecret()
+	providerSecret, err := r.getProviderSecret(provider)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -100,20 +102,20 @@ func (r *reconciler) ensureConsumerSecret(ctx context.Context, binding *kubebind
 			"ProviderSecretInvalid",
 			conditionsapi.ConditionSeverityWarning,
 			"Provider secret %s/%s is missing %q string key.",
-			r.providerNamespace,
+			provider.Namespace,
 			binding.Spec.KubeconfigSecretRef.Name,
 			binding.Spec.KubeconfigSecretRef.Key,
 		)
 		return nil
 	}
 
-	consumerSecret, err := r.getConsumerSecret()
+	consumerSecret, err := r.getConsumerSecret(provider)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
 	if consumerSecret == nil {
-		ns, name, err := cache.SplitMetaNamespaceKey(r.consumerSecretRefKey)
+		ns, name, err := cache.SplitMetaNamespaceKey(provider.ConsumerSecretRefKey)
 		if err != nil {
 			return err
 		}

@@ -40,11 +40,9 @@ import (
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/indexers"
 	clusterscoped "github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -56,28 +54,34 @@ const (
 // NewController returns a new controller reconciling downstream objects to upstream.
 func NewController(
 	gvr schema.GroupVersionResource,
-	providerNamespace string,
-	providerNamespaceUID string,
-	consumerConfig, providerConfig *rest.Config,
+	//pzroviderNamespace string,
+	//providerNamespaceUID string,
+	consumerConfig *rest.Config,
+	//providerConfig *rest.Config,
 	consumerDynamicInformer informers.GenericInformer,
-	providerDynamicInformer multinsinformer.GetterInformer,
-	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
+	//providerDynamicInformer multinsinformer.GetterInformer,
+	//serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
+	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
-	providerConfig = rest.CopyConfig(providerConfig)
-	providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+	for _, provider := range providerInfos {
+		provider.Config = rest.CopyConfig(provider.Config)
+		provider.Config = rest.AddUserAgent(provider.Config, controllerName)
 
-	providerClient, err := dynamicclient.NewForConfig(providerConfig)
-	if err != nil {
-		return nil, err
+		var err error
+		provider.Client, err = dynamicclient.NewForConfig(provider.Config)
+		if err != nil {
+			return nil, err
+		}
+		provider.BindClient, err = bindclient.NewForConfig(provider.Config)
+		if err != nil {
+			return nil, err
+		}
 	}
-	providerBindClient, err := bindclient.NewForConfig(providerConfig)
-	if err != nil {
-		return nil, err
-	}
+
 	consumerClient, err := dynamicclient.NewForConfig(consumerConfig)
 	if err != nil {
 		return nil, err
@@ -88,32 +92,43 @@ func NewController(
 		queue: queue,
 
 		consumerClient: consumerClient,
-		providerClient: providerClient,
+		//providerClient: providerClient,
 
 		consumerDynamicLister:  dynamicConsumerLister,
 		consumerDynamicIndexer: consumerDynamicInformer.Informer().GetIndexer(),
 
-		providerDynamicInformer: providerDynamicInformer,
+		//providerDynamicInformer: providerDynamicInformer,
 
-		serviceNamespaceInformer: serviceNamespaceInformer,
+		//serviceNamespaceInformer: serviceNamespaceInformer,
+
+		providerInfos: providerInfos,
 
 		reconciler: reconciler{
-			providerNamespace: providerNamespace,
-			getServiceNamespace: func(name string) (*kubebindv1alpha1.APIServiceNamespace, error) {
-				return serviceNamespaceInformer.Lister().APIServiceNamespaces(providerNamespace).Get(name)
+			//providerNamespace: providerNamespace,
+			getProviderInfo: func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error) {
+				anno := obj.GetAnnotations()
+				if clusterID := anno[konnectormodels.AnnotationProviderClusterID]; clusterID == "" {
+					return nil, fmt.Errorf("no cluster id found for object %s", obj.GetName())
+				} else {
+					return konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
+				}
 			},
-			createServiceNamespace: func(ctx context.Context, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error) {
-				return providerBindClient.KubeBindV1alpha1().APIServiceNamespaces(providerNamespace).Create(ctx, sn, metav1.CreateOptions{})
+			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error) {
+				return provider.DynamicServiceNamespaceInformer.Lister().APIServiceNamespaces(provider.Namespace).Get(name)
+				//return serviceNamespaceInformer.Lister().APIServiceNamespaces(provider.Namespace).Get(name)
 			},
-			getProviderObject: func(ns, name string) (*unstructured.Unstructured, error) {
+			createServiceNamespace: func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error) {
+				return provider.BindClient.KubeBindV1alpha1().APIServiceNamespaces(provider.Namespace).Create(ctx, sn, metav1.CreateOptions{})
+			},
+			getProviderObject: func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error) {
 				if ns != "" {
-					obj, err := providerDynamicInformer.Get(ns, name)
+					obj, err := provider.ProviderDynamicInformer.Get(ns, name)
 					if err != nil {
 						return nil, err
 					}
 					return obj.(*unstructured.Unstructured), nil
 				}
-				got, err := providerDynamicInformer.Get(ns, clusterscoped.Prepend(name, providerNamespace))
+				got, err := provider.ProviderDynamicInformer.Get(ns, clusterscoped.Prepend(name, provider.Namespace))
 				if err != nil {
 					return nil, err
 				}
@@ -124,15 +139,15 @@ func NewController(
 				}
 				return obj, nil
 			},
-			createProviderObject: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+			createProviderObject: func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 				if ns := obj.GetNamespace(); ns != "" {
-					return providerClient.Resource(gvr).Namespace(obj.GetNamespace()).Create(ctx, obj, metav1.CreateOptions{})
+					return provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Create(ctx, obj, metav1.CreateOptions{})
 				}
-				err := clusterscoped.TranslateFromDownstream(obj, providerNamespace, providerNamespaceUID)
+				err := clusterscoped.TranslateFromDownstream(obj, provider.Namespace, provider.NamespaceUID)
 				if err != nil {
 					return nil, err
 				}
-				created, err := providerClient.Resource(gvr).Namespace(obj.GetNamespace()).Create(ctx, obj, metav1.CreateOptions{})
+				created, err := provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Create(ctx, obj, metav1.CreateOptions{})
 				if err != nil {
 					return nil, err
 				}
@@ -142,10 +157,10 @@ func NewController(
 				}
 				return created, nil
 			},
-			updateProviderObject: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+			updateProviderObject: func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 				ns := obj.GetNamespace()
 				if ns == "" {
-					if err := clusterscoped.TranslateFromDownstream(obj, providerNamespace, providerNamespaceUID); err != nil {
+					if err := clusterscoped.TranslateFromDownstream(obj, provider.Namespace, provider.NamespaceUID); err != nil {
 						return nil, err
 					}
 				}
@@ -153,7 +168,7 @@ func NewController(
 				if err != nil {
 					return nil, err
 				}
-				patched, err := providerClient.Resource(gvr).Namespace(obj.GetNamespace()).Patch(ctx,
+				patched, err := provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Patch(ctx,
 					obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: applyManager, Force: pointer.Bool(true)},
 				)
 				if err != nil {
@@ -168,11 +183,11 @@ func NewController(
 				}
 				return patched, nil
 			},
-			deleteProviderObject: func(ctx context.Context, ns, name string) error {
+			deleteProviderObject: func(ctx context.Context, provider *konnectormodels.ProviderInfo, ns, name string) error {
 				if ns == "" {
-					name = clusterscoped.Prepend(name, providerNamespace)
+					name = clusterscoped.Prepend(name, provider.Namespace)
 				}
-				return providerClient.Resource(gvr).Namespace(ns).Delete(ctx, name, metav1.DeleteOptions{})
+				return provider.Client.Resource(gvr).Namespace(ns).Delete(ctx, name, metav1.DeleteOptions{})
 			},
 			updateConsumerObject: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 				return consumerClient.Resource(gvr).Namespace(obj.GetNamespace()).Update(ctx, obj, metav1.UpdateOptions{})
@@ -200,17 +215,19 @@ func NewController(
 		},
 	})
 
-	providerDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueProvider(logger, obj)
-		},
-		UpdateFunc: func(_, newObj interface{}) {
-			c.enqueueProvider(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueProvider(logger, obj)
-		},
-	})
+	for _, provider := range providerInfos {
+		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueProvider(logger, provider, obj)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.enqueueProvider(logger, provider, newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueProvider(logger, provider, obj)
+			},
+		})
+	}
 
 	return c, nil
 }
@@ -220,14 +237,16 @@ type controller struct {
 	queue workqueue.RateLimitingInterface
 
 	consumerClient dynamicclient.Interface
-	providerClient dynamicclient.Interface
+	//providerClient dynamicclient.Interface
 
 	consumerDynamicLister  dynamiclister.Lister
 	consumerDynamicIndexer cache.Indexer
 
-	providerDynamicInformer multinsinformer.GetterInformer
+	//providerDynamicInformer multinsinformer.GetterInformer
 
-	serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
+	//serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
+
+	providerInfos []*konnectormodels.ProviderInfo
 
 	reconciler
 }
@@ -243,7 +262,7 @@ func (c *controller) enqueueConsumer(logger klog.Logger, obj interface{}) {
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueProvider(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
 	upstreamKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -256,7 +275,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, obj interface{}) {
 	}
 
 	if ns != "" {
-		sns, err := c.serviceNamespaceInformer.Informer().GetIndexer().ByIndex(indexers.ServiceNamespaceByNamespace, ns)
+		sns, err := provider.DynamicServiceNamespaceInformer.Informer().GetIndexer().ByIndex(indexers.ServiceNamespaceByNamespace, ns)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				runtime.HandleError(err)
@@ -265,7 +284,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, obj interface{}) {
 		}
 		for _, obj := range sns {
 			sn := obj.(*kubebindv1alpha1.APIServiceNamespace)
-			if sn.Namespace == c.providerNamespace {
+			if sn.Namespace == provider.Namespace {
 				key := fmt.Sprintf("%s/%s", sn.Name, name)
 				logger.V(2).Info("queueing Unstructured", "key", key)
 				c.queue.Add(key)
@@ -275,16 +294,16 @@ func (c *controller) enqueueProvider(logger klog.Logger, obj interface{}) {
 		return
 	}
 
-	if clusterscoped.Behead(upstreamKey, c.providerNamespace) == upstreamKey {
+	if clusterscoped.Behead(upstreamKey, provider.Namespace) == upstreamKey {
 		logger.V(3).Info("skipping because consumer mismatch", "upstreamKey", upstreamKey)
 		return
 	}
-	downstreamKey := clusterscoped.Behead(upstreamKey, c.providerNamespace)
+	downstreamKey := clusterscoped.Behead(upstreamKey, provider.Namespace)
 	logger.V(2).Info("queueing Unstructured", "key", downstreamKey)
 	c.queue.Add(downstreamKey)
 }
 
-func (c *controller) enqueueServiceNamespace(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueServiceNamespace(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
 	snKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -295,7 +314,7 @@ func (c *controller) enqueueServiceNamespace(logger klog.Logger, obj interface{}
 		runtime.HandleError(err)
 		return
 	}
-	if ns != c.providerNamespace {
+	if ns != provider.Namespace {
 		return // not for us
 	}
 
@@ -325,17 +344,19 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 	logger.Info("Starting controller")
 	defer logger.Info("Shutting down controller")
 
-	c.serviceNamespaceInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueServiceNamespace(logger, obj)
-		},
-		UpdateFunc: func(_, newObj interface{}) {
-			c.enqueueServiceNamespace(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueServiceNamespace(logger, obj)
-		},
-	})
+	for _, provider := range c.providerInfos {
+		provider.DynamicServiceNamespaceInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueServiceNamespace(logger, provider, obj)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.enqueueServiceNamespace(logger, provider, newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueServiceNamespace(logger, provider, obj)
+			},
+		})
+	}
 
 	for i := 0; i < numThreads; i++ {
 		go wait.UntilWithContext(ctx, c.startWorker, time.Second)

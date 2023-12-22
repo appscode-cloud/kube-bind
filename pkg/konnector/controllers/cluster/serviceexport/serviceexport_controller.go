@@ -34,11 +34,11 @@ import (
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
 	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/committer"
 	"github.com/kube-bind/kube-bind/pkg/indexers"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -48,12 +48,16 @@ const (
 // NewController returns a new controller for ServiceExports, spawning spec
 // and status syncer on-demand.
 func NewController(
-	consumerSecretRefKey, providerNamespace string,
-	consumerConfig, providerConfig *rest.Config,
-	serviceExportInformer bindinformers.APIServiceExportInformer,
-	serviceNamespaceInformer bindinformers.APIServiceNamespaceInformer,
+	//consumerSecretRefKey, providerNamespace string,
+	consumerConfig *rest.Config,
+	//providerConfig *rest.Config,
+	//**providerBindInformers.KubeBind().V1alpha1().APIServiceExports(),
+	//serviceExportInformer bindinformers.APIServiceExportInformer,
+	//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces()
+	//serviceNamespaceInformer bindinformers.APIServiceNamespaceInformer,
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister],
 	crdInformer dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister],
+	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
@@ -62,35 +66,57 @@ func NewController(
 	consumerConfig = rest.CopyConfig(consumerConfig)
 	consumerConfig = rest.AddUserAgent(consumerConfig, controllerName)
 
-	providerConfig = rest.CopyConfig(providerConfig)
-	providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+	for _, provider := range providerInfos {
+		provider.Config = rest.CopyConfig(provider.Config)
+		provider.Config = rest.AddUserAgent(provider.Config, controllerName)
 
-	providerBindClient, err := bindclient.NewForConfig(providerConfig)
-	if err != nil {
-		return nil, err
+		//create shared informer factory
+		var err error
+		if provider.BindClient, err = bindclient.NewForConfig(provider.Config); err != nil {
+			return nil, err
+		}
 	}
 
-	dynamicServiceNamespaceInformer := dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](serviceNamespaceInformer)
+	//providerConfig = rest.CopyConfig(providerConfig)
+	//providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+	//
+	//providerBindClient, err := bindclient.NewForConfig(providerConfig)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	//dynamicServiceNamespaceInformer := dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](serviceNamespaceInformer)
+	for _, provider := range providerInfos {
+		//test := dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](serviceNamespaceInformer)
+		provider.DynamicServiceNamespaceInformer = dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces())
+	}
 	c := &controller{
 		queue: queue,
 
-		serviceExportLister:  serviceExportInformer.Lister(),
-		serviceExportIndexer: serviceExportInformer.Informer().GetIndexer(),
+		//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Lister(),
+		//serviceExportLister:  serviceExportInformer.Lister(),
+		//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Informer().GetIndexer,
+		//serviceExportIndexer: serviceExportInformer.Informer().GetIndexer(),
 
-		serviceNamespaceLister:  serviceNamespaceInformer.Lister(),
-		serviceNamespaceIndexer: serviceNamespaceInformer.Informer().GetIndexer(),
+		//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Lister()
+		//serviceNamespaceLister: serviceNamespaceInformer.Lister(),
+		//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Informer().GetIndexer()
+		//serviceNamespaceIndexer: serviceNamespaceInformer.Informer().GetIndexer(),
 
 		serviceBindingInformer: serviceBindingInformer,
 		crdInformer:            crdInformer,
+		providerInfos:          providerInfos,
 
 		reconciler: reconciler{
-			consumerSecretRefKey:     consumerSecretRefKey,
-			providerNamespace:        providerNamespace,
-			serviceNamespaceInformer: dynamicServiceNamespaceInformer,
-			consumerConfig:           consumerConfig,
-			providerConfig:           providerConfig,
+			//consumerSecretRefKey:     consumerSecretRefKey,
+			//providerNamespace:        providerNamespace,
+			//serviceNamespaceInformer: dynamicServiceNamespaceInformer,
+			consumerConfig: consumerConfig,
+			//providerConfig:           providerConfig,
 
 			syncContext: map[string]syncContext{},
+
+			providerInfos: providerInfos,
 
 			getCRD: func(name string) (*apiextensionsv1.CustomResourceDefinition, error) {
 				return crdInformer.Lister().Get(name)
@@ -102,26 +128,34 @@ func NewController(
 
 		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceExport, *kubebindv1alpha1.APIServiceExportSpec, *kubebindv1alpha1.APIServiceExportStatus](
 			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceExport] {
-				return providerBindClient.KubeBindV1alpha1().APIServiceExports(ns)
+				provider, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
+				if err != nil {
+					klog.Errorf(fmt.Sprintf("failed to get any provider with namespace: %s", ns))
+					return nil
+				}
+				return provider.BindClient.KubeBindV1alpha1().APIServiceExports(ns)
+				//return providerBindClient.KubeBindV1alpha1().APIServiceExports(ns)
 			},
 		),
 	}
 
-	indexers.AddIfNotPresentOrDie(serviceNamespaceInformer.Informer().GetIndexer(), cache.Indexers{
-		indexers.ServiceNamespaceByNamespace: indexers.IndexServiceNamespaceByNamespace,
-	})
+	for _, provider := range providerInfos {
+		indexers.AddIfNotPresentOrDie(provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces().Informer().GetIndexer(), cache.Indexers{
+			indexers.ServiceNamespaceByNamespace: indexers.IndexServiceNamespaceByNamespace,
+		})
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			c.enqueueServiceExport(logger, obj)
-		},
-		UpdateFunc: func(_, newObj interface{}) {
-			c.enqueueServiceExport(logger, newObj)
-		},
-		DeleteFunc: func(obj interface{}) {
-			c.enqueueServiceExport(logger, obj)
-		},
-	})
+		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				c.enqueueServiceExport(logger, obj)
+			},
+			UpdateFunc: func(_, newObj interface{}) {
+				c.enqueueServiceExport(logger, newObj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				c.enqueueServiceExport(logger, obj)
+			},
+		})
+	}
 
 	return c, nil
 }
@@ -133,14 +167,20 @@ type CommitFunc = func(context.Context, *Resource, *Resource) error
 type controller struct {
 	queue workqueue.RateLimitingInterface
 
-	serviceExportLister  bindlisters.APIServiceExportLister
-	serviceExportIndexer cache.Indexer
+	//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Lister(),
+	//serviceExportLister  bindlisters.APIServiceExportLister
+	//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Informer().GetIndexer,
+	//serviceExportIndexer cache.Indexer
 
-	serviceNamespaceLister  bindlisters.APIServiceNamespaceLister
-	serviceNamespaceIndexer cache.Indexer
+	//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Lister()
+	//serviceNamespaceLister bindlisters.APIServiceNamespaceLister
+	//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Informer().GetIndexer()
+	//serviceNamespaceIndexer cache.Indexer
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 	crdInformer            dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister]
+
+	providerInfos []*konnectormodels.ProviderInfo
 
 	reconciler
 
@@ -165,9 +205,12 @@ func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) 
 		return
 	}
 
-	key := c.providerNamespace + "/" + binding.Name
-	logger.V(2).Info("queueing APIServiceExport", "key", key, "reason", "APIServiceBinding", "APIServiceBindingKey", binding.Name)
-	c.queue.Add(key)
+	for _, provider := range c.providerInfos {
+		key := provider.Namespace + "/" + binding.Name
+		logger.V(2).Info("queueing APIServiceExport", "key", key, "reason", "APIServiceBinding", "APIServiceBindingKey", binding.Name)
+		c.queue.Add(key)
+	}
+
 }
 
 func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
@@ -177,9 +220,11 @@ func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
 		return
 	}
 
-	key := c.providerNamespace + "/" + crdKey
-	logger.V(2).Info("queueing APIServiceExport", "key", key, "reason", "APIServiceExport", "APIServiceExportKey", crdKey)
-	c.queue.Add(key)
+	for _, provider := range c.providerInfos {
+		key := provider.Namespace + "/" + crdKey
+		logger.V(2).Info("queueing APIServiceExport", "key", key, "reason", "APIServiceExport", "APIServiceExportKey", crdKey)
+		c.queue.Add(key)
+	}
 }
 
 // Start starts the controller, which stops when ctx.Done() is closed.
@@ -264,7 +309,14 @@ func (c *controller) process(ctx context.Context, key string) error {
 
 	logger := klog.FromContext(ctx)
 
-	obj, err := c.serviceExportLister.APIServiceExports(ns).Get(name)
+	provider, err := konnectormodels.GetProviderInfoWithProviderNamespace(c.providerInfos, ns)
+	if err != nil {
+		runtime.HandleError(err)
+		return nil
+	}
+
+	obj, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Lister().APIServiceExports(ns).Get(name)
+	//obj, err := c.serviceExportLister.APIServiceExports(ns).Get(name)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
