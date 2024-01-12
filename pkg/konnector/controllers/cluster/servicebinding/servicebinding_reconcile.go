@@ -33,8 +33,6 @@ import (
 )
 
 type reconciler struct {
-	//consumerSecretRefKey, providerNamespace string
-
 	providerInfos []*konnectormodels.ProviderInfo
 
 	reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool
@@ -76,7 +74,6 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 }
 
 func (r *reconciler) ensureValidServiceExport(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
-	// CONFUSION: the r.getServiceExport() method receives ns, but we are passing binding name here
 	for _, provider := range r.providerInfos {
 		if _, err := r.getServiceExport(provider, binding.Name); err != nil && !errors.IsNotFound(err) {
 			return err

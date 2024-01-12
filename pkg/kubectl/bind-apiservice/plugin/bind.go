@@ -37,7 +37,6 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/component-base/logs"
 	logsv1 "k8s.io/component-base/logs/api/v1"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
@@ -163,28 +162,21 @@ func (b *BindAPIServiceOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	klog.Infof("manifest unmarshaled")
 	result, err := b.createServiceExportRequest(ctx, remoteConfig, remoteNamespace, request)
 	if err != nil {
 		return err
 	}
-	klog.Infof("service export request created.")
 	if err := b.deployKonnector(ctx, config); err != nil {
-		klog.Errorf(fmt.Sprintf("error in deployKonnector: %s", err.Error()))
 		return err
 	}
-	klog.Infof("connector deployed")
 	secretName, err := b.createKubeconfigSecret(ctx, config, remoteConfig.Host, remoteNamespace, remoteKubeconfig)
 	if err != nil {
 		return err
 	}
-	klog.Infof("kubeconfig secret created")
 	bindings, err := b.createAPIServiceBindings(ctx, config, result, secretName)
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("failed to create api service binding, %s", err.Error()))
 		return err
 	}
-	klog.Infof("api service binding created")
 
 	fmt.Fprintln(b.Options.ErrOut) // nolint: errcheck
 	return b.printTable(ctx, config, bindings)

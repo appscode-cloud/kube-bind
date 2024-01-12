@@ -53,35 +53,33 @@ const (
 
 // NewController returns a new controller for ClusterBindings.
 func NewController(
-	//consumerSecretRefKey string,
-	//providerNamespace string,
 	heartbeatInterval time.Duration,
 	consumerConfig *rest.Config,
-	//clusterBindingInformer bindinformers.ClusterBindingInformer,
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister],
-	//serviceExportInformer bindinformers.APIServiceExportInformer,
 	consumerSecretInformer coreinformers.SecretInformer,
-	//providerSecretInformer coreinformers.SecretInformer,
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
-	//providerConfig = rest.CopyConfig(providerConfig)
-	//providerConfig = rest.AddUserAgent(providerConfig, controllerName)
+	for _, provider := range providerInfos {
+		provider.Config = rest.CopyConfig(provider.Config)
+		provider.Config = rest.AddUserAgent(provider.Config, controllerName)
+		var err error
+		provider.BindClient, err = bindclient.NewForConfig(provider.Config)
+		if err != nil {
+			return nil, err
+		}
+		provider.KubeClient, err = kubernetesclient.NewForConfig(provider.Config)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	consumerConfig = rest.CopyConfig(consumerConfig)
 	consumerConfig = rest.AddUserAgent(consumerConfig, controllerName)
 
-	//providerBindClient, err := bindclient.NewForConfig(providerConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//providerKubeClient, err := kubernetesclient.NewForConfig(providerConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
 	consumerBindClient, err := bindclient.NewForConfig(consumerConfig)
 	if err != nil {
 		return nil, err
@@ -94,26 +92,11 @@ func NewController(
 	c := &controller{
 		queue: queue,
 
-		//providerBindClient: providerBindClient,
-		//providerKubeClient: providerKubeClient,
-		consumerBindClient: consumerBindClient,
-		consumerKubeClient: consumerKubeClient,
-		providerInfos:      providerInfos,
-
-		// .bindInformer.kubebind().v1alpha1.ClusterBinding().Lister()
-		///clusterBindingLister: clusterBindingInformer.Lister(),
-
-		// .bindInformer.kubebind().v1alpha1().ClusterBinding().Informer().GetIndexer()
-		//clusterBindingIndexer: clusterBindingInformer.Informer().GetIndexer(),
-
+		consumerBindClient:     consumerBindClient,
+		consumerKubeClient:     consumerKubeClient,
+		providerInfos:          providerInfos,
 		serviceBindingInformer: serviceBindingInformer,
-
-		// .bindInformers.KubeBind().V1alpha1().APISer
-		//serviceExportLister:  serviceExportInformer.Lister(),
-		//serviceExportIndexer: serviceExportInformer.Informer().GetIndexer(),
-
-		consumerSecretLister: consumerSecretInformer.Lister(),
-		//providerSecretLister: providerSecretInformer.Lister(),
+		consumerSecretLister:   consumerSecretInformer.Lister(),
 
 		reconciler: reconciler{
 			heartbeatInterval: heartbeatInterval,
@@ -233,22 +216,15 @@ type CommitFunc = func(context.Context, *Resource, *Resource) error
 type controller struct {
 	queue workqueue.RateLimitingInterface
 
-	//providerBindClient bindclient.Interface
-	//providerKubeClient kubernetesclient.Interface
 	consumerBindClient bindclient.Interface
 	consumerKubeClient kubernetesclient.Interface
 
-	//clusterBindingLister  bindlisters.ClusterBindingLister
 	clusterBindingIndexer cache.Indexer
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 
-	//serviceExportLister  bindlisters.APIServiceExportLister
-	//serviceExportIndexer cache.Indexer
-
 	consumerSecretLister corelisters.SecretLister
-	//providerSecretLister corelisters.SecretLister
-	providerInfos []*konnectormodels.ProviderInfo
+	providerInfos        []*konnectormodels.ProviderInfo
 
 	reconciler
 

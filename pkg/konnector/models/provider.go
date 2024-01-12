@@ -17,6 +17,7 @@ import (
 )
 
 type ProviderInfo struct {
+	// consumerSecretRefKey is the namespace/name value of the APIServiceBinding kubeconfig secret reference.
 	Namespace, NamespaceUID, ClusterID, ConsumerSecretRefKey string
 	Config                                                   *rest.Config
 	Client                                                   dynamicclient.Interface
@@ -43,5 +44,5 @@ func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, provide
 			return info, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("no provider information found with cluster id: %s", providerNamespace))
+	return nil, errors.New(fmt.Sprintf("no provider information found with namespace: %s", providerNamespace))
 }

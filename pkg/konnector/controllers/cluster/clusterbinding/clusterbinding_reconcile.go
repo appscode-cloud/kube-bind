@@ -49,10 +49,13 @@ type reconciler struct {
 func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding) error {
 	var errs []error
 
-	for _, provider := range r.providerInfos {
-		if err := r.ensureConsumerSecret(ctx, binding, provider); err != nil {
-			errs = append(errs, err)
-		}
+	provider, err := konnectormodels.GetProviderInfoWithProviderNamespace(r.providerInfos, binding.Namespace)
+	if err != nil {
+		return err
+	}
+
+	if err := r.ensureConsumerSecret(ctx, binding, provider); err != nil {
+		errs = append(errs, err)
 	}
 
 	if err := r.ensureHeartbeat(ctx, binding); err != nil {

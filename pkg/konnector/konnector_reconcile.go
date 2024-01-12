@@ -103,15 +103,15 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 
 	// find existing with new kubeconfig
 	// no need to match with the old controller context, create a new instead
-	//for _, ctrlContext := range r.controllers {
-	//	if ctrlContext.kubeconfig == kubeconfig {
-	//		// add to it
-	//		logger.V(2).Info("adding to existing Controller", "secret", ref.Namespace+"/"+ref.Name)
-	//		r.controllers[binding.Name] = ctrlContext
-	//		ctrlContext.serviceBindings.Insert(binding.Name)
-	//		return nil
-	//	}
-	//}
+	for _, ctrlContext := range r.controllers {
+		if reflect.DeepEqual(ctrlContext.kubeconfig, kubeconfigs) {
+			// add to it
+			logger.V(2).Info("adding to existing Controller", "secret", binding.Namespace+"/"+binding.Name)
+			r.controllers[binding.Name] = ctrlContext
+			ctrlContext.serviceBindings.Insert(binding.Name)
+			return nil
+		}
+	}
 
 	var providerInfos []*konnectormodels.ProviderInfo
 	for _, identifier := range identifiers {
@@ -152,7 +152,7 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 		}
 		provider.ClusterID = string(ns.GetUID())
 
-		providerInfos = append(r.providerInfos, &provider)
+		providerInfos = append(providerInfos, &provider)
 	}
 
 	ctrlCtx, cancel := context.WithCancel(ctx)

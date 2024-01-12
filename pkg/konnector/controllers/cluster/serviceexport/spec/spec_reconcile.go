@@ -33,8 +33,6 @@ import (
 )
 
 type reconciler struct {
-	//providerNamespace string
-
 	getProviderInfo        func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error)
 	getServiceNamespace    func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error)
 	createServiceNamespace func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error)
@@ -55,7 +53,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	provider, err := r.getProviderInfo(obj)
 	if err != nil {
-		klog.Errorf("failed to get provider information. ", err.Error())
+		klog.Errorf(fmt.Sprintf("failed to get provider information: %s", err.Error()))
 		return err
 	}
 

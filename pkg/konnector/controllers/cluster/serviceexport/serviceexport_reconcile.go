@@ -43,16 +43,9 @@ import (
 )
 
 type reconciler struct {
-	// consumerSecretRefKey is the namespace/name value of the APIServiceBinding kubeconfig secret reference.
-	//consumerSecretRefKey     string
-	//providerNamespace        string
-	//serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
-
 	consumerConfig *rest.Config
-	//providerConfig *rest.Config
-
-	lock        sync.Mutex
-	syncContext map[string]syncContext // by CRD name
+	lock           sync.Mutex
+	syncContext    map[string]syncContext // by CRD name
 
 	providerInfos []*konnectormodels.ProviderInfo
 
@@ -199,13 +192,8 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 
 	specCtrl, err := spec.NewController(
 		gvr,
-		//provider.Namespace,
-		//providerNamespaceUID,
 		r.consumerConfig,
-		//provider.Config,
 		consumerInf.ForResource(gvr),
-		//providerInf,
-		//provider.DynamicServiceNamespaceInformer,
 		r.providerInfos,
 	)
 	if err != nil {
@@ -214,13 +202,8 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 	}
 	statusCtrl, err := status.NewController(
 		gvr,
-		//provider.Namespace,
-		//providerNamespaceUID,
 		r.consumerConfig,
-		//provider.Config,
 		consumerInf.ForResource(gvr),
-		//providerInf,
-		//provider.DynamicServiceNamespaceInformer,
 		r.providerInfos,
 	)
 	if err != nil {

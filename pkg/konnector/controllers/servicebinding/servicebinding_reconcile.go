@@ -47,7 +47,6 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 
 func (r *reconciler) ensureValidKubeconfigSecret(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
 	for _, ref := range binding.Spec.KubeconfigSecretRefs {
-
 		secret, err := r.getConsumerSecret(ref.Namespace, ref.Name)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
