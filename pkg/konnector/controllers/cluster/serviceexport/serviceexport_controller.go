@@ -48,13 +48,7 @@ const (
 // NewController returns a new controller for ServiceExports, spawning spec
 // and status syncer on-demand.
 func NewController(
-	//consumerSecretRefKey, providerNamespace string,
 	consumerConfig *rest.Config,
-	//providerConfig *rest.Config,
-	//**providerBindInformers.KubeBind().V1alpha1().APIServiceExports(),
-	//serviceExportInformer bindinformers.APIServiceExportInformer,
-	//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces()
-	//serviceNamespaceInformer bindinformers.APIServiceNamespaceInformer,
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister],
 	crdInformer dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister],
 	providerInfos []*konnectormodels.ProviderInfo,
@@ -76,43 +70,18 @@ func NewController(
 			return nil, err
 		}
 	}
-
-	//providerConfig = rest.CopyConfig(providerConfig)
-	//providerConfig = rest.AddUserAgent(providerConfig, controllerName)
-	//
-	//providerBindClient, err := bindclient.NewForConfig(providerConfig)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	//dynamicServiceNamespaceInformer := dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](serviceNamespaceInformer)
 	for _, provider := range providerInfos {
-		//test := dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](serviceNamespaceInformer)
 		provider.DynamicServiceNamespaceInformer = dynamic.NewDynamicInformer[bindlisters.APIServiceNamespaceLister](provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces())
 	}
 	c := &controller{
 		queue: queue,
-
-		//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Lister(),
-		//serviceExportLister:  serviceExportInformer.Lister(),
-		//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Informer().GetIndexer,
-		//serviceExportIndexer: serviceExportInformer.Informer().GetIndexer(),
-
-		//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Lister()
-		//serviceNamespaceLister: serviceNamespaceInformer.Lister(),
-		//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Informer().GetIndexer()
-		//serviceNamespaceIndexer: serviceNamespaceInformer.Informer().GetIndexer(),
 
 		serviceBindingInformer: serviceBindingInformer,
 		crdInformer:            crdInformer,
 		providerInfos:          providerInfos,
 
 		reconciler: reconciler{
-			//consumerSecretRefKey:     consumerSecretRefKey,
-			//providerNamespace:        providerNamespace,
-			//serviceNamespaceInformer: dynamicServiceNamespaceInformer,
 			consumerConfig: consumerConfig,
-			//providerConfig:           providerConfig,
 
 			syncContext: map[string]syncContext{},
 
@@ -134,7 +103,6 @@ func NewController(
 					return nil
 				}
 				return provider.BindClient.KubeBindV1alpha1().APIServiceExports(ns)
-				//return providerBindClient.KubeBindV1alpha1().APIServiceExports(ns)
 			},
 		),
 	}
@@ -166,16 +134,6 @@ type CommitFunc = func(context.Context, *Resource, *Resource) error
 // controller reconciles ServiceExportResources and starts and stop syncers.
 type controller struct {
 	queue workqueue.RateLimitingInterface
-
-	//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Lister(),
-	//serviceExportLister  bindlisters.APIServiceExportLister
-	//**provider.BindInformers.KubeBind().V1alpha1().APIServiceExports().Informer().GetIndexer,
-	//serviceExportIndexer cache.Indexer
-
-	//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Lister()
-	//serviceNamespaceLister bindlisters.APIServiceNamespaceLister
-	//**providerBindInformers.KubeBind().V1alpha1().APIServiceNamespaces().Informer().GetIndexer()
-	//serviceNamespaceIndexer cache.Indexer
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 	crdInformer            dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister]
@@ -316,7 +274,6 @@ func (c *controller) process(ctx context.Context, key string) error {
 	}
 
 	obj, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Lister().APIServiceExports(ns).Get(name)
-	//obj, err := c.serviceExportLister.APIServiceExports(ns).Get(name)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {

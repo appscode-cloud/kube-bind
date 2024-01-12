@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
@@ -45,19 +44,13 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 		return nil, err
 	}
 
-	klog.Infof(fmt.Sprintf("secret name %s", secretName))
-
 	var bindings []*kubebindv1alpha1.APIServiceBinding
 	for _, resource := range request.Spec.Resources {
 		name := resource.Resource + "." + resource.Group
 		existing, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Get(ctx, name, metav1.GetOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
-			klog.Errorf(fmt.Sprintf("failed while getting the APIServiceBinding(), %s", err.Error()))
 			return nil, err
 		} else if err == nil {
-			//if existing.Spec.KubeconfigSecretRefs.Namespace != "kube-bind" || existing.Spec.KubeconfigSecretRefs.Name != secretName {
-			//	return nil, fmt.Errorf("found existing APIServiceBinding %s not from this service provider", name)
-			//}
 			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
 
 			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, kubebindv1alpha1.ClusterSecretKeyRef{
@@ -87,7 +80,6 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 			continue
 		}
 
-		klog.Infof("creating a new api service binding")
 		// create new APIServiceBinding.
 		first := true
 		if err := wait.PollInfinite(1*time.Second, func() (bool, error) {
@@ -95,32 +87,24 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 				first = false
 				fmt.Fprint(b.Options.IOStreams.ErrOut, ".") // nolint: errcheck
 			}
-			secretRefs := []kubebindv1alpha1.ClusterSecretKeyRef{
-				{
-					LocalSecretKeyRef: kubebindv1alpha1.LocalSecretKeyRef{
-						Name: secretName,
-						Key:  "kubeconfig",
-					},
-					Namespace: "kube-bind",
-				},
-			}
-
-			klog.Infof(fmt.Sprintf("kubeconfig secret ref size: %d", len(secretRefs)))
-			if secretRefs != nil {
-				klog.Infof("kubeconfig secret ref is not empty")
-			}
-
 			created, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Create(ctx, &kubebindv1alpha1.APIServiceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resource.Resource + "." + resource.Group,
 					Namespace: "kube-bind",
 				},
 				Spec: kubebindv1alpha1.APIServiceBindingSpec{
-					KubeconfigSecretRefs: secretRefs,
+					KubeconfigSecretRefs: []kubebindv1alpha1.ClusterSecretKeyRef{
+						{
+							LocalSecretKeyRef: kubebindv1alpha1.LocalSecretKeyRef{
+								Name: secretName,
+								Key:  "kubeconfig",
+							},
+							Namespace: "kube-bind",
+						},
+					},
 				},
 			}, metav1.CreateOptions{})
 			if err != nil {
-				klog.Errorf(err.Error())
 				return false, err
 			}
 

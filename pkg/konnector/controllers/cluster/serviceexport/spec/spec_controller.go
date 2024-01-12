@@ -54,13 +54,8 @@ const (
 // NewController returns a new controller reconciling downstream objects to upstream.
 func NewController(
 	gvr schema.GroupVersionResource,
-	//pzroviderNamespace string,
-	//providerNamespaceUID string,
 	consumerConfig *rest.Config,
-	//providerConfig *rest.Config,
 	consumerDynamicInformer informers.GenericInformer,
-	//providerDynamicInformer multinsinformer.GetterInformer,
-	//serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister],
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
@@ -81,7 +76,6 @@ func NewController(
 			return nil, err
 		}
 	}
-
 	consumerClient, err := dynamicclient.NewForConfig(consumerConfig)
 	if err != nil {
 		return nil, err
@@ -92,19 +86,13 @@ func NewController(
 		queue: queue,
 
 		consumerClient: consumerClient,
-		//providerClient: providerClient,
 
 		consumerDynamicLister:  dynamicConsumerLister,
 		consumerDynamicIndexer: consumerDynamicInformer.Informer().GetIndexer(),
 
-		//providerDynamicInformer: providerDynamicInformer,
-
-		//serviceNamespaceInformer: serviceNamespaceInformer,
-
 		providerInfos: providerInfos,
 
 		reconciler: reconciler{
-			//providerNamespace: providerNamespace,
 			getProviderInfo: func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error) {
 				anno := obj.GetAnnotations()
 				if clusterID := anno[konnectormodels.AnnotationProviderClusterID]; clusterID == "" {
@@ -115,7 +103,6 @@ func NewController(
 			},
 			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error) {
 				return provider.DynamicServiceNamespaceInformer.Lister().APIServiceNamespaces(provider.Namespace).Get(name)
-				//return serviceNamespaceInformer.Lister().APIServiceNamespaces(provider.Namespace).Get(name)
 			},
 			createServiceNamespace: func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error) {
 				return provider.BindClient.KubeBindV1alpha1().APIServiceNamespaces(provider.Namespace).Create(ctx, sn, metav1.CreateOptions{})
@@ -237,14 +224,9 @@ type controller struct {
 	queue workqueue.RateLimitingInterface
 
 	consumerClient dynamicclient.Interface
-	//providerClient dynamicclient.Interface
 
 	consumerDynamicLister  dynamiclister.Lister
 	consumerDynamicIndexer cache.Indexer
-
-	//providerDynamicInformer multinsinformer.GetterInformer
-
-	//serviceNamespaceInformer dynamic.Informer[bindlisters.APIServiceNamespaceLister]
 
 	providerInfos []*konnectormodels.ProviderInfo
 

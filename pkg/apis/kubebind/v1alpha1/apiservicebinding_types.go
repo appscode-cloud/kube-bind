@@ -86,7 +86,6 @@ type APIServiceBindingSpec struct {
 	// +required
 	// +kubebuilder:validation:Required
 	KubeconfigSecretRefs []ClusterSecretKeyRef `json:"kubeconfigSecretRefs"`
-	// kubebuilder:validation:XValidation:rule="self == oldSelf",message="kubeconfigSecretRefs is immutable"
 }
 
 type APIServiceBindingStatus struct {
