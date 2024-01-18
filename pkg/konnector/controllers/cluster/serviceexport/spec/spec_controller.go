@@ -95,11 +95,20 @@ func NewController(
 		reconciler: reconciler{
 			getProviderInfo: func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error) {
 				anno := obj.GetAnnotations()
-				if clusterID := anno[konnectormodels.AnnotationProviderClusterID]; clusterID == "" {
+				clusterID := anno[konnectormodels.AnnotationProviderClusterID]
+				if clusterID == "" {
+					// If there is only one provider, assign the cluster id to the resource
+					if len(providerInfos) == 1 {
+						provider := providerInfos[0]
+						anno[konnectormodels.AnnotationProviderClusterID] = provider.ClusterID
+						obj.SetAnnotations(anno)
+						return provider, nil
+					}
+
+					// If there are multiple providers return error
 					return nil, fmt.Errorf("no cluster id found for object %s", obj.GetName())
-				} else {
-					return konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 				}
+				return konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 			},
 			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error) {
 				return provider.DynamicServiceNamespaceInformer.Lister().APIServiceNamespaces(provider.Namespace).Get(name)

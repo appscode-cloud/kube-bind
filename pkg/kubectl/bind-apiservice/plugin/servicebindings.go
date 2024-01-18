@@ -34,6 +34,10 @@ import (
 	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
 )
 
+const (
+	kubeconfigSecretNamespace = "kube-bind"
+)
+
 func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *kubebindv1alpha1.APIServiceExportRequest, secretName string) ([]*kubebindv1alpha1.APIServiceBinding, error) {
 	bindClient, err := bindclient.NewForConfig(config)
 	if err != nil {
@@ -51,6 +55,22 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 		if err != nil && !apierrors.IsNotFound(err) {
 			return nil, err
 		} else if err == nil {
+			//if existing.Spec.KubeconfigSecretRef.Namespace != "kube-bind" || existing.Spec.KubeconfigSecretRef.Name != secretName {
+			//	return nil, fmt.Errorf("found existing APIServiceBinding %s not from this service provider", name)
+			//}
+
+			hasSecret := false
+			for _, secRef := range existing.Spec.KubeconfigSecretRefs {
+				if secRef.Namespace == kubeconfigSecretNamespace && secRef.Name == secretName {
+					hasSecret = true
+					fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Existing APIServiceBinding \"%s\" already has the secret \"%s\".\n", existing.Name, secretName) // nolint: errcheck
+					break
+				}
+			}
+			if hasSecret {
+				continue
+			}
+
 			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
 
 			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, kubebindv1alpha1.ClusterSecretKeyRef{
@@ -58,7 +78,7 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 					Name: secretName,
 					Key:  "kubeconfig",
 				},
-				Namespace: "kube-bind",
+				Namespace: kubeconfigSecretNamespace,
 			})
 
 			existing, err = bindClient.KubeBindV1alpha1().APIServiceBindings().Update(ctx, existing, metav1.UpdateOptions{})
