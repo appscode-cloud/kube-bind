@@ -19,6 +19,7 @@ package status
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -209,7 +210,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 			sns := obj.(*kubebindv1alpha1.APIServiceNamespace)
 			if sns.Namespace == provider.Namespace {
 				logger.V(2).Info("queueing Unstructured", "key", key)
-				c.queue.Add(key)
+				c.queue.Add(provider.ClusterID + "/" + key)
 				return
 			}
 		}
@@ -222,7 +223,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 		return
 	}
 	logger.V(2).Info("queueing Unstructured", "key", key)
-	c.queue.Add(key)
+	c.queue.Add(provider.ClusterID + "/" + key)
 }
 
 func (c *controller) enqueueConsumer(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
@@ -248,7 +249,7 @@ func (c *controller) enqueueConsumer(logger klog.Logger, provider *konnectormode
 		if sn.Namespace == provider.Namespace && sn.Status.Namespace != "" {
 			key := fmt.Sprintf("%s/%s", sn.Status.Namespace, name)
 			logger.V(2).Info("queueing Unstructured", "key", key)
-			c.queue.Add(key)
+			c.queue.Add(provider.ClusterID + "/" + key)
 			return
 		}
 		return
@@ -256,7 +257,7 @@ func (c *controller) enqueueConsumer(logger klog.Logger, provider *konnectormode
 
 	upstreamKey := clusterscoped.Prepend(downstreamKey, provider.Namespace)
 	logger.V(2).Info("queueing Unstructured", "key", upstreamKey)
-	c.queue.Add(upstreamKey)
+	c.queue.Add(provider.ClusterID + "/" + upstreamKey)
 }
 
 func (c *controller) enqueueServiceNamespace(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
@@ -294,7 +295,7 @@ func (c *controller) enqueueServiceNamespace(logger klog.Logger, provider *konne
 			continue
 		}
 		logger.V(2).Info("queueing Unstructured", "key", key, "reason", "APIServiceNamespace", "ServiceNamespaceKey", key)
-		c.queue.Add(key)
+		c.queue.Add(provider.ClusterID + "/" + key)
 	}
 }
 
@@ -360,8 +361,25 @@ func (c *controller) processNextWorkItem(ctx context.Context) bool {
 	return true
 }
 
+func splitMetaNamespaceKeyWithClusterID(key string) (clusterId, namespace, name string, err error) {
+	parts := strings.Split(key, "/")
+	switch len(parts) {
+	case 1:
+		// name only, no namespace
+		return "", "", "", fmt.Errorf(fmt.Sprintf("unexpected object key format: %q", key))
+	case 2:
+		// cluster id and name
+		return parts[0], "", parts[1], nil
+	case 3:
+		// cluster id , namespace and name
+		return parts[0], parts[1], parts[2], nil
+	}
+
+	return "", "", "", fmt.Errorf("unexpected key format: %q", key)
+}
+
 func (c *controller) process(ctx context.Context, key string) error {
-	ns, name, err := cache.SplitMetaNamespaceKey(key)
+	clusterID, ns, name, err := splitMetaNamespaceKeyWithClusterID(key)
 	if err != nil {
 		runtime.HandleError(err)
 		return nil // we cannot do anything
@@ -369,16 +387,9 @@ func (c *controller) process(ctx context.Context, key string) error {
 
 	logger := klog.FromContext(ctx)
 
-	dsObj, err := c.consumerDynamicLister.Namespace(ns).Get(name)
-	if err != nil && !errors.IsNotFound(err) {
-		return err
-	} else if errors.IsNotFound(err) {
-		klog.Errorf(fmt.Sprintf("no object found with %s/%s", ns, name))
-		return fmt.Errorf("no object found in consumer cluster with key: %s/%s", ns, name)
-	}
-	annos := dsObj.GetAnnotations()
-	provider, err := konnectormodels.GetProviderInfoWithClusterID(c.providerInfos, annos[konnectormodels.AnnotationProviderClusterID])
+	provider, err := konnectormodels.GetProviderInfoWithClusterID(c.providerInfos, clusterID)
 	if err != nil {
+		klog.Errorf(err.Error())
 		return err
 	}
 
