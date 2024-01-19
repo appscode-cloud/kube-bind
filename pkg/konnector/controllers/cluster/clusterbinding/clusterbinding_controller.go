@@ -94,7 +94,6 @@ func NewController(
 
 		consumerBindClient:     consumerBindClient,
 		consumerKubeClient:     consumerKubeClient,
-		providerInfos:          providerInfos,
 		serviceBindingInformer: serviceBindingInformer,
 		consumerSecretLister:   consumerSecretInformer.Lister(),
 
@@ -224,7 +223,6 @@ type controller struct {
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 
 	consumerSecretLister corelisters.SecretLister
-	providerInfos        []*konnectormodels.ProviderInfo
 
 	reconciler
 

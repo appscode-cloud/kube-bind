@@ -133,7 +133,7 @@ func NewController(
 	var factories []SharedInformerFactory
 	for _, provider := range providerInfos {
 		factories = append(factories, provider.BindInformer)
-		factories = append(factories, provider.BindInformer)
+		factories = append(factories, provider.KubeInformer)
 	}
 	factories = append(factories, consumerSecretInformers)
 
