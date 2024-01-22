@@ -3,17 +3,16 @@ package models
 import (
 	"errors"
 	"fmt"
-
-	dynamicclient "k8s.io/client-go/dynamic"
-	kubernetesinformers "k8s.io/client-go/informers"
-	kubernetesclient "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
 	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
 	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
 	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	dynamicclient "k8s.io/client-go/dynamic"
+	kubernetesinformers "k8s.io/client-go/informers"
+	kubernetesclient "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type ProviderInfo struct {
@@ -45,4 +44,31 @@ func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, provide
 		}
 	}
 	return nil, errors.New(fmt.Sprintf("no provider information found with namespace: %s", providerNamespace))
+}
+
+func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
+	unstr, found := obj.(*unstructured.Unstructured)
+	if !found {
+		return false
+	}
+	annos := unstr.GetAnnotations()
+
+	if annos[AnnotationProviderClusterID] == provider.ClusterID {
+		return true
+	}
+	return false
+}
+
+func GetProviderFromObjectInterface(providerInfos []*ProviderInfo, obj interface{}) (*ProviderInfo, error) {
+	unstr, found := obj.(*unstructured.Unstructured)
+	if !found {
+		return nil, fmt.Errorf("failed to convert interface into unstructured")
+	}
+	annos := unstr.GetAnnotations()
+	for _, provider := range providerInfos {
+		if annos[AnnotationProviderClusterID] == provider.ClusterID {
+			return provider, nil
+		}
+	}
+	return nil, fmt.Errorf("no provider found for object %s", unstr.GetName())
 }

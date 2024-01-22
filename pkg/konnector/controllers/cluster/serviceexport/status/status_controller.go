@@ -144,19 +144,19 @@ func NewController(
 		},
 	}
 
-	for _, provider := range c.providerInfos {
-		consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				c.enqueueConsumer(logger, provider, obj)
-			},
-			UpdateFunc: func(_, newObj interface{}) {
-				c.enqueueConsumer(logger, provider, newObj)
-			},
-			DeleteFunc: func(obj interface{}) {
-				c.enqueueConsumer(logger, provider, obj)
-			},
-		})
+	consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			c.enqueueConsumer(logger, obj)
+		},
+		UpdateFunc: func(_, newObj interface{}) {
+			c.enqueueConsumer(logger, newObj)
+		},
+		DeleteFunc: func(obj interface{}) {
+			c.enqueueConsumer(logger, obj)
+		},
+	})
 
+	for _, provider := range c.providerInfos {
 		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueProvider(logger, provider, obj)
@@ -190,6 +190,9 @@ type controller struct {
 }
 
 func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
+	if !konnectormodels.IsMatchProvider(provider, obj) {
+		return
+	}
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -226,7 +229,13 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 	c.queue.Add(provider.ClusterID + "/" + key)
 }
 
-func (c *controller) enqueueConsumer(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
+func (c *controller) enqueueConsumer(logger klog.Logger, obj interface{}) {
+	provider, err := konnectormodels.GetProviderFromObjectInterface(c.providerInfos, obj)
+	if err != nil {
+		runtime.HandleError(err)
+		return
+	}
+
 	downstreamKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)

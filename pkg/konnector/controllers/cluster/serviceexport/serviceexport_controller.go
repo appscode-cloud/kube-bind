@@ -83,7 +83,7 @@ func NewController(
 		reconciler: reconciler{
 			consumerConfig: consumerConfig,
 
-			syncContext: map[string]syncContext{},
+			syncContext: map[syncInfo]syncContext{},
 
 			providerInfos: providerInfos,
 
@@ -168,7 +168,6 @@ func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) 
 		logger.V(2).Info("queueing APIServiceExport", "key", key, "reason", "APIServiceBinding", "APIServiceBindingKey", binding.Name)
 		c.queue.Add(key)
 	}
-
 }
 
 func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
@@ -278,7 +277,10 @@ func (c *controller) process(ctx context.Context, key string) error {
 		return err
 	} else if errors.IsNotFound(err) {
 		logger.Error(err, "APIServiceExport disappeared")
-		if err := c.reconcile(ctx, name, nil); err != nil {
+		if err := c.reconcile(ctx, &syncInfo{
+			clusterID:    provider.ClusterID,
+			exporterName: name,
+		}, nil); err != nil {
 			return err
 		}
 		return nil
@@ -288,7 +290,10 @@ func (c *controller) process(ctx context.Context, key string) error {
 	obj = obj.DeepCopy()
 
 	var errs []error
-	if err := c.reconcile(ctx, name, obj); err != nil {
+	if err := c.reconcile(ctx, &syncInfo{
+		clusterID:    provider.ClusterID,
+		exporterName: name,
+	}, obj); err != nil {
 		errs = append(errs, err)
 	}
 
