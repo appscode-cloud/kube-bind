@@ -42,10 +42,15 @@ import (
 	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
+type syncInfo struct {
+	clusterID    string
+	exporterName string
+}
+
 type reconciler struct {
 	consumerConfig *rest.Config
 	lock           sync.Mutex
-	syncContext    map[string]syncContext // by CRD name
+	syncContext    map[syncInfo]syncContext // by ClusterID and CRD name
 
 	providerInfos []*konnectormodels.ProviderInfo
 
@@ -58,10 +63,10 @@ type syncContext struct {
 	cancel     func()
 }
 
-func (r *reconciler) reconcile(ctx context.Context, name string, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) reconcile(ctx context.Context, sync *syncInfo, export *kubebindv1alpha1.APIServiceExport) error {
 	errs := []error{}
 
-	if err := r.ensureControllers(ctx, name, export); err != nil {
+	if err := r.ensureControllers(ctx, sync, export); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -77,17 +82,17 @@ func (r *reconciler) reconcile(ctx context.Context, name string, export *kubebin
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureControllers(ctx context.Context, name string, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) ensureControllers(ctx context.Context, sync *syncInfo, export *kubebindv1alpha1.APIServiceExport) error {
 	logger := klog.FromContext(ctx)
 
 	if export == nil {
 		// stop dangling syncers on delete
 		r.lock.Lock()
 		defer r.lock.Unlock()
-		if c, found := r.syncContext[name]; found {
+		if c, found := r.syncContext[*sync]; found {
 			logger.V(1).Info("Stopping APIServiceExport sync", "reason", "APIServiceExport deleted")
 			c.cancel()
-			delete(r.syncContext, name)
+			delete(r.syncContext, *sync)
 		}
 		return nil
 	}
@@ -100,10 +105,16 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 		// stop it
 		r.lock.Lock()
 		defer r.lock.Unlock()
-		if c, found := r.syncContext[export.Name]; found {
+		if c, found := r.syncContext[syncInfo{
+			clusterID:    sync.clusterID,
+			exporterName: export.Name,
+		}]; found {
 			logger.V(1).Info("Stopping APIServiceExport sync", "reason", "NoCustomResourceDefinition")
 			c.cancel()
-			delete(r.syncContext, export.Name)
+			delete(r.syncContext, syncInfo{
+				clusterID:    sync.clusterID,
+				exporterName: export.Name,
+			})
 		}
 
 		return nil
@@ -118,17 +129,26 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 		// stop it
 		r.lock.Lock()
 		defer r.lock.Unlock()
-		if c, found := r.syncContext[export.Name]; found {
+		if c, found := r.syncContext[syncInfo{
+			clusterID:    sync.clusterID,
+			exporterName: export.Name,
+		}]; found {
 			logger.V(1).Info("Stopping APIServiceExport sync", "reason", "NoAPIServiceBinding")
 			c.cancel()
-			delete(r.syncContext, export.Name)
+			delete(r.syncContext, syncInfo{
+				clusterID:    sync.clusterID,
+				exporterName: export.Name,
+			})
 		}
 
 		return nil
 	}
 
 	r.lock.Lock()
-	c, found := r.syncContext[export.Name]
+	c, found := r.syncContext[syncInfo{
+		clusterID:    sync.clusterID,
+		exporterName: export.Name,
+	}]
 	if found {
 		if c.generation == export.Generation {
 			r.lock.Unlock()
@@ -139,7 +159,10 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 
 		logger.V(1).Info("Stopping APIServiceExport sync", "reason", "GenerationChanged", "generation", export.Generation)
 		c.cancel()
-		delete(r.syncContext, export.Name)
+		delete(r.syncContext, syncInfo{
+			clusterID:    sync.clusterID,
+			exporterName: export.Name,
+		})
 	}
 	r.lock.Unlock()
 
@@ -234,10 +257,16 @@ func (r *reconciler) ensureControllers(ctx context.Context, name string, export 
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	if c, found := r.syncContext[export.Name]; found {
+	if c, found := r.syncContext[syncInfo{
+		clusterID:    sync.clusterID,
+		exporterName: export.Name,
+	}]; found {
 		c.cancel()
 	}
-	r.syncContext[export.Name] = syncContext{
+	r.syncContext[syncInfo{
+		clusterID:    sync.clusterID,
+		exporterName: export.Name,
+	}] = syncContext{
 		generation: export.Generation,
 		cancel:     cancel,
 	}
