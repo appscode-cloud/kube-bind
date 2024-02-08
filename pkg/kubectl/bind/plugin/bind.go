@@ -275,7 +275,8 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 			"apiservice",
 			"--remote-kubeconfig-namespace", secret.Namespace,
 			"--remote-kubeconfig-name", secret.Name,
-			//"--remote-namespace", "bind",
+			// comment the remote namespace
+			"--remote-namespace", remoteNamespace,
 			"--konnector-image", "superm4n/konnector:latest",
 			"-f", "-",
 		}
