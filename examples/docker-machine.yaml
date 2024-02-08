@@ -3,8 +3,8 @@ kind: Machine
 metadata:
   name: rancher-vm-01
   namespace: demo
-  annotations:
-    provider.kube-bind.io/cluster-id: 8f18c509-4c42-440c-a21d-c5eff65b70ba
+#  annotations:
+#    provider.kube-bind.io/cluster-id: 8f18c509-4c42-440c-a21d-c5eff65b70ba
 #    provider.kube-bind.io/cluster-id: e2e5da71-228a-4c19-bc0e-5efdf33f5875
 spec:
   driver:
