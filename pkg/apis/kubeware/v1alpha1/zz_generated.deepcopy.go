@@ -22,7 +22,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	conditionsv1alpha1 "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	conditionsv1alpha1 "kmodules.xyz/client-go/api/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )

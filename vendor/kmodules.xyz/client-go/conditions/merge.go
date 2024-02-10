@@ -19,22 +19,22 @@ package conditions
 import (
 	"sort"
 
-	corev1 "k8s.io/api/core/v1"
+	kmapi "kmodules.xyz/client-go/api/v1"
 
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// localizedCondition defines a condition with the information of the object the conditions
+// localizedCondition defines a condition with the information of the object the util
 // was originated from.
 type localizedCondition struct {
-	*conditionsapi.Condition
+	*kmapi.Condition
 	Getter
 }
 
 // merge a list of condition into a single one.
-// This operation is designed to ensure visibility of the most relevant conditions for defining the
+// This operation is designed to ensure visibility of the most relevant util for defining the
 // operational state of a component. E.g. If there is one error in the condition list, this one takes
-// priority over the other conditions and it is should be reflected in the target condition.
+// priority over the other util, and it should be reflected in the target condition.
 //
 // More specifically:
 // 1. Conditions are grouped by status, severity
@@ -45,25 +45,26 @@ type localizedCondition struct {
 //   - P3 - Status=True
 //   - P4 - Status=Unknown
 //
-// 3. The group with highest priority is used to determine status, severity and other info of the target condition.
+// 3. The group with the highest priority is used to determine status, severity and other info of the target condition.
 //
 // Please note that the last operation includes also the task of computing the Reason and the Message for the target
 // condition; in order to complete such task some trade-off should be made, because there is no a golden rule
 // for summarizing many Reason/Message into single Reason/Message.
 // mergeOptions allows the user to adapt this process to the specific needs by exposing a set of merge strategies.
-func merge(conditions []localizedCondition, targetCondition conditionsapi.ConditionType, options *mergeOptions) *conditionsapi.Condition {
+func merge(conditions []localizedCondition, targetCondition kmapi.ConditionType, options *mergeOptions) *kmapi.Condition {
 	g := getConditionGroups(conditions)
 	if len(g) == 0 {
 		return nil
 	}
 
-	if g.TopGroup().status == corev1.ConditionTrue {
+	if g.TopGroup().status == metav1.ConditionTrue {
 		return TrueCondition(targetCondition)
 	}
 
 	targetReason := getReason(g, options)
 	targetMessage := getMessage(g, options)
-	if g.TopGroup().status == corev1.ConditionFalse {
+
+	if g.TopGroup().status == metav1.ConditionFalse {
 		return FalseCondition(targetCondition, targetReason, g.TopGroup().severity, targetMessage)
 	}
 	return UnknownCondition(targetCondition, targetReason, targetMessage)
@@ -99,7 +100,7 @@ func getConditionGroups(conditions []localizedCondition) conditionGroups {
 	// sort groups by priority
 	sort.Sort(groups)
 
-	// sorts conditions in the TopGroup so we ensure predictable result for merge strategies.
+	// sorts conditions in the TopGroup, so we ensure predictable result for merge strategies.
 	// condition are sorted using the same lexicographic order used by Set; in case two conditions
 	// have the same type, condition are sorted using according to the alphabetical order of the source object name.
 	if len(groups) > 0 {
@@ -132,7 +133,7 @@ func (g conditionGroups) Swap(i, j int) {
 	g[i], g[j] = g[j], g[i]
 }
 
-// TopGroup returns the the condition group with the highest mergePriority.
+// TopGroup returns the condition group with the highest mergePriority.
 func (g conditionGroups) TopGroup() *conditionGroup {
 	if len(g) == 0 {
 		return nil
@@ -140,22 +141,22 @@ func (g conditionGroups) TopGroup() *conditionGroup {
 	return &g[0]
 }
 
-// TrueGroup returns the the condition group with status True, if any.
+// TrueGroup returns the condition group with status True, if any.
 func (g conditionGroups) TrueGroup() *conditionGroup {
-	return g.getByStatusAndSeverity(corev1.ConditionTrue, conditionsapi.ConditionSeverityNone)
+	return g.getByStatusAndSeverity(metav1.ConditionTrue, kmapi.ConditionSeverityNone)
 }
 
-// ErrorGroup returns the the condition group with status False and severity Error, if any.
+// ErrorGroup returns the condition group with status False and severity Error, if any.
 func (g conditionGroups) ErrorGroup() *conditionGroup {
-	return g.getByStatusAndSeverity(corev1.ConditionFalse, conditionsapi.ConditionSeverityError)
+	return g.getByStatusAndSeverity(metav1.ConditionFalse, kmapi.ConditionSeverityError)
 }
 
-// WarningGroup returns the the condition group with status False and severity Warning, if any.
+// WarningGroup returns the condition group with status False and severity Warning, if any.
 func (g conditionGroups) WarningGroup() *conditionGroup {
-	return g.getByStatusAndSeverity(corev1.ConditionFalse, conditionsapi.ConditionSeverityWarning)
+	return g.getByStatusAndSeverity(metav1.ConditionFalse, kmapi.ConditionSeverityWarning)
 }
 
-func (g conditionGroups) getByStatusAndSeverity(status corev1.ConditionStatus, severity conditionsapi.ConditionSeverity) *conditionGroup {
+func (g conditionGroups) getByStatusAndSeverity(status metav1.ConditionStatus, severity kmapi.ConditionSeverity) *conditionGroup {
 	if len(g) == 0 {
 		return nil
 	}
@@ -170,8 +171,8 @@ func (g conditionGroups) getByStatusAndSeverity(status corev1.ConditionStatus, s
 // conditionGroup define a group of conditions with the same status and severity,
 // and thus with the same priority when merging into a Ready condition.
 type conditionGroup struct {
-	status     corev1.ConditionStatus
-	severity   conditionsapi.ConditionSeverity
+	status     metav1.ConditionStatus
+	severity   kmapi.ConditionSeverity
 	conditions []localizedCondition
 }
 
@@ -179,18 +180,18 @@ type conditionGroup struct {
 // condition group. The mergePriority value allows an easier sorting of conditions groups.
 func (g conditionGroup) mergePriority() int {
 	switch g.status {
-	case corev1.ConditionFalse:
+	case metav1.ConditionFalse:
 		switch g.severity {
-		case conditionsapi.ConditionSeverityError:
+		case kmapi.ConditionSeverityError:
 			return 0
-		case conditionsapi.ConditionSeverityWarning:
+		case kmapi.ConditionSeverityWarning:
 			return 1
-		case conditionsapi.ConditionSeverityInfo:
+		case kmapi.ConditionSeverityInfo:
 			return 2
 		}
-	case corev1.ConditionTrue:
+	case metav1.ConditionTrue:
 		return 3
-	case corev1.ConditionUnknown:
+	case metav1.ConditionUnknown:
 		return 4
 	}
 

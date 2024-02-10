@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/google/go-cmp/cmp"
+	kmapi "kmodules.xyz/client-go/api/v1"
 
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"github.com/google/go-cmp/cmp"
 )
 
 // Patch defines a list of operations to change a list of conditions into another.
@@ -30,8 +30,8 @@ type Patch []PatchOperation
 
 // PatchOperation define an operation that changes a single condition.
 type PatchOperation struct {
-	Before *conditionsapi.Condition
-	After  *conditionsapi.Condition
+	Before *kmapi.Condition
+	After  *kmapi.Condition
 	Op     PatchOperationType
 }
 
@@ -42,7 +42,7 @@ const (
 	// AddConditionPatch defines an add condition patch operation.
 	AddConditionPatch PatchOperationType = "Add"
 
-	// ChangeConditionPatch defines an change condition patch operation.
+	// ChangeConditionPatch defines a change condition patch operation.
 	ChangeConditionPatch PatchOperationType = "Change"
 
 	// RemoveConditionPatch defines a remove condition patch operation.
@@ -82,11 +82,11 @@ func NewPatch(before Getter, after Getter) Patch {
 
 // applyOptions allows to set strategies for patch apply.
 type applyOptions struct {
-	ownedConditions []conditionsapi.ConditionType
+	ownedConditions []kmapi.ConditionType
 	forceOverwrite  bool
 }
 
-func (o *applyOptions) isOwnedCondition(t conditionsapi.ConditionType) bool {
+func (o *applyOptions) isOwnedCondition(t kmapi.ConditionType) bool {
 	for _, i := range o.ownedConditions {
 		if i == t {
 			return true
@@ -100,7 +100,7 @@ type ApplyOption func(*applyOptions)
 
 // WithOwnedConditions allows to define condition types owned by the controller.
 // In case of conflicts for the owned conditions, the patch helper will always use the value provided by the controller.
-func WithOwnedConditions(t ...conditionsapi.ConditionType) ApplyOption {
+func WithOwnedConditions(t ...kmapi.ConditionType) ApplyOption {
 	return func(c *applyOptions) {
 		c.ownedConditions = t
 	}
@@ -144,7 +144,7 @@ func (p Patch) Apply(latest Setter, options ...ApplyOption) error {
 				// NOTE: We are preserving LastTransitionTime from the latest in order to avoid altering the existing value.
 				continue
 			}
-			// If the condition does not exists on the latest, add the new after condition.
+			// If the condition does not exist on the latest, add the new after condition.
 			Set(latest, conditionPatch.After)
 
 		case ChangeConditionPatch:

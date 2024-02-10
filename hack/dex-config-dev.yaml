@@ -99,7 +99,7 @@ oauth2:
     # If only one authentication method is enabled, the default behavior is to
     # go directly to it. For connected IdPs, this redirects the browser away
     # from application to upstream provider such as the Google login page
-    #   alwaysShowLoginScreen: false
+  #   alwaysShowLoginScreen: false
   # Uncomment the passwordConnector to use a specific connector for password grants
 #   passwordConnector: local
 

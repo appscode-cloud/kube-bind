@@ -37,14 +37,14 @@ import (
 	"k8s.io/klog/v2"
 
 	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
 	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
 	"go.kubeware.dev/kubeware/pkg/committer"
 	"go.kubeware.dev/kubeware/pkg/indexers"
 	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
 	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 const (

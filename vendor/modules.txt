@@ -1369,6 +1369,10 @@ k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
+# kmodules.xyz/client-go v0.29.6
+## explicit; go 1.21.5
+kmodules.xyz/client-go/api/v1
+kmodules.xyz/client-go/conditions
 # rsc.io/qr v0.2.0
 ## explicit
 rsc.io/qr

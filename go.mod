@@ -15,7 +15,6 @@ require (
 	github.com/kcp-dev/kcp/pkg/apis v0.11.0
 	github.com/martinlindhe/base36 v1.1.1
 	github.com/mdp/qrterminal/v3 v3.2.0
-	github.com/onsi/gomega v1.30.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
@@ -34,6 +33,7 @@ require (
 	k8s.io/component-base v0.29.0
 	k8s.io/klog/v2 v2.120.0
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
+	kmodules.xyz/client-go v0.29.6
 	sigs.k8s.io/controller-runtime v0.17.0
 	sigs.k8s.io/controller-tools v0.13.0
 	sigs.k8s.io/yaml v1.4.0
@@ -97,6 +97,7 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.11 // indirect
+	github.com/onsi/gomega v1.30.0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

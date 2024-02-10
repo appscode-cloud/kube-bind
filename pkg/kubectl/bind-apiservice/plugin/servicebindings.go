@@ -29,9 +29,9 @@ import (
 
 	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 	"go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1/helpers"
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 const (

@@ -22,13 +22,13 @@ import (
 
 	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 	kubewarehelpers "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1/helpers"
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 type reconciler struct {

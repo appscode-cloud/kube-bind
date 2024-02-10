@@ -29,10 +29,10 @@ import (
 	"k8s.io/klog/v2"
 
 	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 	"go.kubeware.dev/kubeware/pkg/version"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 type reconciler struct {

@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,12 +33,12 @@ import (
 	"k8s.io/klog/v2"
 
 	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
-	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
 	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/spec"
 	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/status"
 	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 type syncInfo struct {
@@ -341,7 +340,7 @@ func (r *reconciler) ensureCRDConditionsCopied(export *kubewarev1alpha1.APIServi
 		}
 		copied := conditionsapi.Condition{
 			Type:               conditionsapi.ConditionType(c.Type),
-			Status:             corev1.ConditionStatus(c.Status),
+			Status:             metav1.ConditionStatus(c.Status),
 			Severity:           severity, // CRD conditions have no severity
 			LastTransitionTime: c.LastTransitionTime,
 			Reason:             c.Reason,
