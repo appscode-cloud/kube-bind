@@ -39,21 +39,21 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
 )
 
 const (
-	controllerName = "kube-bind-example-backend-clusterbinding"
+	controllerName = "kubeware-example-backend-clusterbinding"
 )
 
 // NewController returns a new controller to reconcile ClusterBindings.
 func NewController(
 	config *rest.Config,
-	scope kubebindv1alpha1.Scope,
+	scope kubewarev1alpha1.Scope,
 	clusterBindingInformer bindinformers.ClusterBindingInformer,
 	serviceExportInformer bindinformers.APIServiceExportInformer,
 	clusterRoleInformer rbacinformers.ClusterRoleInformer,
@@ -61,7 +61,9 @@ func NewController(
 	roleBindingInformer rbacinformers.RoleBindingInformer,
 	namespaceInformer kubeinformers.NamespaceInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -97,7 +99,7 @@ func NewController(
 
 		reconciler: reconciler{
 			scope: scope,
-			listServiceExports: func(ns string) ([]*kubebindv1alpha1.APIServiceExport, error) {
+			listServiceExports: func(ns string) ([]*kubewarev1alpha1.APIServiceExport, error) {
 				return serviceExportInformer.Lister().APIServiceExports(ns).List(labels.Everything())
 			},
 			getClusterRole: func(name string) (*rbacv1.ClusterRole, error) {
@@ -135,14 +137,14 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.ClusterBinding, *kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.ClusterBinding] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.ClusterBinding, *kubewarev1alpha1.ClusterBindingSpec, *kubewarev1alpha1.ClusterBindingStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.ClusterBinding] {
 				return bindClient.KubeBindV1alpha1().ClusterBindings(ns)
 			},
 		),
 	}
 
-	clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueClusterBinding(logger, obj)
 		},
@@ -153,8 +155,11 @@ func NewController(
 			c.enqueueClusterBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceExport(logger, obj)
 		},
@@ -165,11 +170,14 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.ClusterBindingSpec, *kubewarev1alpha1.ClusterBindingStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // Controller reconciles ClusterBinding conditions.

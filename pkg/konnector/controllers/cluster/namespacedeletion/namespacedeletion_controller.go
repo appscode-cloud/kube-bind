@@ -33,15 +33,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const (
-	controllerName = "kube-bind-konnector-namespacedeletion"
+	controllerName = "kubeware-konnector-namespacedeletion"
 )
 
 // NewController returns a new controller deleting old ServiceNamespaces.
@@ -49,7 +48,9 @@ func NewController(
 	providerInfos []*konnectormodels.ProviderInfo,
 	namespaceInformer dynamic.Informer[corelisters.NamespaceLister],
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 	for _, provider := range providerInfos {
@@ -75,7 +76,7 @@ func NewController(
 		getNamespace:  namespaceInformer.Lister().Get,
 		providerInfos: providerInfos,
 
-		getServiceNamespace: func(ns, name string) (*kubebindv1alpha1.APIServiceNamespace, error) {
+		getServiceNamespace: func(ns, name string) (*kubewarev1alpha1.APIServiceNamespace, error) {
 			providerInfo, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
 			if err != nil {
 				return nil, err
@@ -92,7 +93,7 @@ func NewController(
 	}
 
 	for _, provider := range providerInfos {
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceNamespace(logger, obj)
 			},
@@ -103,6 +104,9 @@ func NewController(
 				c.enqueueServiceNamespace(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -115,13 +119,10 @@ type controller struct {
 
 	namespaceInformer dynamic.Informer[corelisters.NamespaceLister]
 
-	serviceNamespaceLister  bindlisters.APIServiceNamespaceLister
-	serviceNamespaceIndexer cache.Indexer
-
 	providerInfos []*konnectormodels.ProviderInfo
 
 	getNamespace           func(name string) (*corev1.Namespace, error)
-	getServiceNamespace    func(ns, name string) (*kubebindv1alpha1.APIServiceNamespace, error)
+	getServiceNamespace    func(ns, name string) (*kubewarev1alpha1.APIServiceNamespace, error)
 	deleteServiceNamespace func(ctx context.Context, ns, name string) error
 }
 

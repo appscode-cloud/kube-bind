@@ -18,36 +18,35 @@ package servicebinding
 
 import (
 	"context"
+	"k8s.io/utils/ptr"
 
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	kubewarehelpers "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1/helpers"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/utils/pointer"
-
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	kubebindhelpers "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
 )
 
 type reconciler struct {
 	providerInfos []*konnectormodels.ProviderInfo
 
-	reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool
-	getServiceExport        func(provider *konnectormodels.ProviderInfo, ns string) (*kubebindv1alpha1.APIServiceExport, error)
-	getServiceBinding       func(name string) (*kubebindv1alpha1.APIServiceBinding, error)
-	getClusterBinding       func(ctx context.Context, provider *konnectormodels.ProviderInfo) (*kubebindv1alpha1.ClusterBinding, error)
+	reconcileServiceBinding func(binding *kubewarev1alpha1.APIServiceBinding) bool
+	getServiceExport        func(provider *konnectormodels.ProviderInfo, ns string) (*kubewarev1alpha1.APIServiceExport, error)
+	getServiceBinding       func(name string) (*kubewarev1alpha1.APIServiceBinding, error)
+	getClusterBinding       func(ctx context.Context, provider *konnectormodels.ProviderInfo) (*kubewarev1alpha1.ClusterBinding, error)
 
-	updateServiceExportStatus func(ctx context.Context, export *kubebindv1alpha1.APIServiceExport, clusterID string) (*kubebindv1alpha1.APIServiceExport, error)
+	updateServiceExportStatus func(ctx context.Context, export *kubewarev1alpha1.APIServiceExport, clusterID string) (*kubewarev1alpha1.APIServiceExport, error)
 
 	getCRD    func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
 	updateCRD func(ctx context.Context, crd *apiextensionsv1.CustomResourceDefinition) (*apiextensionsv1.CustomResourceDefinition, error)
 	createCRD func(ctx context.Context, crd *apiextensionsv1.CustomResourceDefinition) (*apiextensionsv1.CustomResourceDefinition, error)
 }
 
-func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
+func (r *reconciler) reconcile(ctx context.Context, binding *kubewarev1alpha1.APIServiceBinding) error {
 	var errs []error
 
 	// As konnector is running APIServiceBinding controller for each provider cluster,
@@ -73,14 +72,14 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureValidServiceExport(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
+func (r *reconciler) ensureValidServiceExport(ctx context.Context, binding *kubewarev1alpha1.APIServiceBinding) error {
 	for _, provider := range r.providerInfos {
 		if _, err := r.getServiceExport(provider, binding.Name); err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if errors.IsNotFound(err) {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionConnected,
+				kubewarev1alpha1.APIServiceBindingConditionConnected,
 				"APIServiceExportNotFound",
 				conditionsapi.ConditionSeverityError,
 				"APIServiceExport %s not found on the service provider cluster. Rerun kubectl bind for repair.",
@@ -92,13 +91,13 @@ func (r *reconciler) ensureValidServiceExport(ctx context.Context, binding *kube
 
 	conditions.MarkTrue(
 		binding,
-		kubebindv1alpha1.APIServiceBindingConditionConnected,
+		kubewarev1alpha1.APIServiceBindingConditionConnected,
 	)
 
 	return nil
 }
 
-func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
+func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubewarev1alpha1.APIServiceBinding) error {
 	var errs []error
 
 	for _, provider := range r.providerInfos {
@@ -108,7 +107,7 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 		} else if errors.IsNotFound(err) {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionConnected,
+				kubewarev1alpha1.APIServiceBindingConditionConnected,
 				"APIServiceExportNotFound",
 				conditionsapi.ConditionSeverityError,
 				"APIServiceExport %s not found on the service provider cluster %s.",
@@ -118,11 +117,11 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 			return nil // nothing we can do here
 		}
 
-		crd, err := kubebindhelpers.ServiceExportToCRD(export)
+		crd, err := kubewarehelpers.ServiceExportToCRD(export)
 		if err != nil {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionConnected,
+				kubewarev1alpha1.APIServiceBindingConditionConnected,
 				"APIServiceExportInvalid",
 				conditionsapi.ConditionSeverityError,
 				"APIServiceExport %s on the service provider cluster is invalid: %s",
@@ -133,11 +132,11 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 
 		// put binding owner reference on the CRD.
 		newReference := metav1.OwnerReference{
-			APIVersion: kubebindv1alpha1.SchemeGroupVersion.String(),
+			APIVersion: kubewarev1alpha1.SchemeGroupVersion.String(),
 			Kind:       "APIServiceBinding",
 			Name:       binding.Name,
 			UID:        binding.UID,
-			Controller: pointer.Bool(true),
+			Controller: ptr.To(true),
 		}
 		crd.OwnerReferences = append(crd.OwnerReferences, newReference)
 
@@ -150,7 +149,7 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 			} else if errors.IsInvalid(err) {
 				conditions.MarkFalse(
 					binding,
-					kubebindv1alpha1.APIServiceBindingConditionConnected,
+					kubewarev1alpha1.APIServiceBindingConditionConnected,
 					"CustomResourceDefinitionCreateFailed",
 					conditionsapi.ConditionSeverityError,
 					"CustomResourceDefinition %s cannot be created: %s",
@@ -159,18 +158,18 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 				return nil
 			}
 
-			conditions.MarkTrue(binding, kubebindv1alpha1.APIServiceBindingConditionConnected)
+			conditions.MarkTrue(binding, kubewarev1alpha1.APIServiceBindingConditionConnected)
 			return nil // we wait for a new reconcile to update APIServiceExport status
 		}
 
 		// first check this really ours and we don't override something else
-		if !kubebindhelpers.IsOwnedByBinding(binding.Name, binding.UID, existing.OwnerReferences) {
+		if !kubewarehelpers.IsOwnedByBinding(binding.Name, binding.UID, existing.OwnerReferences) {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionConnected,
+				kubewarev1alpha1.APIServiceBindingConditionConnected,
 				"ForeignCustomResourceDefinition",
 				conditionsapi.ConditionSeverityError,
-				"CustomResourceDefinition %s is not owned by kube-bind.io.",
+				"CustomResourceDefinition %s is not owned by kubeware.dev.",
 				binding.Name,
 			)
 			return nil
@@ -182,7 +181,7 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 		} else if errors.IsInvalid(err) {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionConnected,
+				kubewarev1alpha1.APIServiceBindingConditionConnected,
 				"CustomResourceDefinitionUpdateFailed",
 				conditionsapi.ConditionSeverityError,
 				"CustomResourceDefinition %s cannot be updated: %s",
@@ -192,12 +191,12 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 		}
 	}
 
-	conditions.MarkTrue(binding, kubebindv1alpha1.APIServiceBindingConditionConnected)
+	conditions.MarkTrue(binding, kubewarev1alpha1.APIServiceBindingConditionConnected)
 
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensurePrettyName(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
+func (r *reconciler) ensurePrettyName(ctx context.Context, binding *kubewarev1alpha1.APIServiceBinding) error {
 	binding.Status.ProviderPrettyName = []string{}
 	for _, provider := range r.providerInfos {
 		clusterBinding, err := r.getClusterBinding(ctx, provider)

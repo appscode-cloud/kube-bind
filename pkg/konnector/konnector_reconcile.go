@@ -29,8 +29,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const namespaceKubeSystem = "kube-system"
@@ -45,21 +45,21 @@ type reconciler struct {
 
 	providerInfos []*konnectormodels.ProviderInfo
 
-	newClusterController func(providerInfos []*konnectormodels.ProviderInfo, reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool) (startable, error)
+	newClusterController func(providerInfos []*konnectormodels.ProviderInfo, reconcileServiceBinding func(binding *kubewarev1alpha1.APIServiceBinding) bool) (startable, error)
 	getSecret            func(ns, name string) (*corev1.Secret, error)
 }
 
 type controllerContext struct {
 	kubeconfig      []string
 	cancel          func()
-	serviceBindings sets.String // when this is empty, the Controller should be stopped by closing the context
+	serviceBindings sets.Set[string] // when this is empty, the Controller should be stopped by closing the context
 }
 
 type providerIdentifier struct {
 	kubeconfig, secretRefName, secretRefNamespace string
 }
 
-func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
+func (r *reconciler) reconcile(ctx context.Context, binding *kubewarev1alpha1.APIServiceBinding) error {
 	logger := klog.FromContext(ctx)
 
 	var kubeconfigs []string
@@ -159,14 +159,14 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 	r.controllers[binding.Name] = &controllerContext{
 		kubeconfig:      kubeconfigs,
 		cancel:          cancel,
-		serviceBindings: sets.NewString(binding.Name),
+		serviceBindings: sets.New[string](binding.Name),
 	}
 
 	// create new because there is none yet for this kubeconfig
 	logger.V(2).Info("starting new Controller", "binding", binding.Namespace+"/"+binding.Name)
 	ctrl, err := r.newClusterController(
 		providerInfos,
-		func(svcBinding *kubebindv1alpha1.APIServiceBinding) bool {
+		func(svcBinding *kubewarev1alpha1.APIServiceBinding) bool {
 			r.lock.RLock()
 			defer r.lock.RUnlock()
 			return r.controllers[binding.Name].serviceBindings.Has(svcBinding.Name)

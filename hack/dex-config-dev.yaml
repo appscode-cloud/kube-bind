@@ -68,7 +68,7 @@ telemetry:
 # Uncomment this block to enable the gRPC API. This values MUST be different
 # from the HTTP endpoints.
 grpc:
-   addr: 127.0.0.1:5557
+  addr: 127.0.0.1:5557
 #   tlsCert: examples/grpc-client/server.crt
 #   tlsKey: examples/grpc-client/server.key
 #   tlsClientCA: examples/grpc-client/ca.crt
@@ -91,27 +91,27 @@ grpc:
 
 # Default values shown below
 oauth2:
-    # use ["code", "token", "id_token"] to enable implicit flow for web-only clients
-#   responseTypes: [ "code" ] # also allowed are "token" and "id_token"
-    # By default, Dex will ask for approval to share data with application
-    # (approval for sharing data from connected IdP to Dex is separate process on IdP)
-   skipApprovalScreen: true
+  # use ["code", "token", "id_token"] to enable implicit flow for web-only clients
+  #   responseTypes: [ "code" ] # also allowed are "token" and "id_token"
+  # By default, Dex will ask for approval to share data with application
+  # (approval for sharing data from connected IdP to Dex is separate process on IdP)
+  skipApprovalScreen: true
     # If only one authentication method is enabled, the default behavior is to
     # go directly to it. For connected IdPs, this redirects the browser away
     # from application to upstream provider such as the Google login page
-#   alwaysShowLoginScreen: false
-    # Uncomment the passwordConnector to use a specific connector for password grants
+    #   alwaysShowLoginScreen: false
+  # Uncomment the passwordConnector to use a specific connector for password grants
 #   passwordConnector: local
 
 # Instead of reading from an external storage, use this list of clients.
 #
 # If this option isn't chosen clients may be added through the gRPC API.
 staticClients:
-- id: kube-bind
-  redirectURIs:
-  - 'http://127.0.0.1:8080/callback'
-  name: 'Kube Bind'
-  secret: ZXhhbXBsZS1hcHAtc2VjcmV0
+  - id: kube-bind
+    redirectURIs:
+      - 'http://127.0.0.1:8080/callback'
+    name: 'Kube Bind'
+    secret: ZXhhbXBsZS1hcHAtc2VjcmV0
 
 #  - id: example-device-client
 #    redirectURIs:
@@ -119,9 +119,9 @@ staticClients:
 #    name: 'Static Client for Device Flow'
 #    public: true
 connectors:
-- type: mockCallback
-  id: mock
-  name: Example
+  - type: mockCallback
+    id: mock
+    name: Example
 # - type: google
 #   id: google
 #   name: Google

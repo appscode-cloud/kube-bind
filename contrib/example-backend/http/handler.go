@@ -40,12 +40,12 @@ import (
 	componentbaseversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/contrib/example-backend/cookie"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/template"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindversion "github.com/kube-bind/kube-bind/pkg/version"
+	"go.kubeware.dev/kubeware/contrib/example-backend/cookie"
+	"go.kubeware.dev/kubeware/contrib/example-backend/kubernetes"
+	"go.kubeware.dev/kubeware/contrib/example-backend/kubernetes/resources"
+	"go.kubeware.dev/kubeware/contrib/example-backend/template"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindversion "go.kubeware.dev/kubeware/pkg/version"
 )
 
 var (
@@ -62,7 +62,7 @@ var noCacheHeaders = map[string]string{
 type handler struct {
 	oidc *OIDCServiceProvider
 
-	scope              kubebindv1alpha1.Scope
+	scope              kubewarev1alpha1.Scope
 	oidcAuthorizeURL   string
 	backendCallbackURL string
 	providerPrettyName string
@@ -80,7 +80,7 @@ func NewHandler(
 	provider *OIDCServiceProvider,
 	oidcAuthorizeURL, backendCallbackURL, providerPrettyName, testingAutoSelect string,
 	cookieSigningKey, cookieEncryptionKey []byte,
-	scope kubebindv1alpha1.Scope,
+	scope kubewarev1alpha1.Scope,
 	mgr *kubernetes.Manager,
 	apiextensionsLister apiextensionslisters.CustomResourceDefinitionLister,
 ) (*handler, error) {
@@ -121,17 +121,17 @@ func (h *handler) handleServiceExport(w http.ResponseWriter, r *http.Request) {
 		ver = "v0.0.0"
 	}
 
-	provider := &kubebindv1alpha1.BindingProvider{
+	provider := &kubewarev1alpha1.BindingProvider{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: kubebindv1alpha1.GroupVersion,
+			APIVersion: kubewarev1alpha1.GroupVersion,
 			Kind:       "BindingProvider",
 		},
 		Version:            ver,
 		ProviderPrettyName: "example-backend",
-		AuthenticationMethods: []kubebindv1alpha1.AuthenticationMethod{
+		AuthenticationMethods: []kubewarev1alpha1.AuthenticationMethod{
 			{
 				Method: "OAuth2CodeGrant",
-				OAuth2CodeGrant: &kubebindv1alpha1.OAuth2CodeGrant{
+				OAuth2CodeGrant: &kubewarev1alpha1.OAuth2CodeGrant{
 					AuthenticatedURL: oidcAuthorizeURL,
 				},
 			},
@@ -268,7 +268,7 @@ func (h *handler) handleCallback(w http.ResponseWriter, r *http.Request) {
 		ClusterID:    authCode.ClusterID,
 	}
 
-	cookieName := "kube-bind-" + authCode.SessionID
+	cookieName := "kubeware-" + authCode.SessionID
 	s := securecookie.New(h.cookieSigningKey, h.cookieEncryptionKey)
 	encoded, err := s.Encode(cookieName, sessionCookie)
 	if err != nil {
@@ -306,7 +306,7 @@ func (h *handler) handleResources(w http.ResponseWriter, r *http.Request) {
 	})
 	rightScopedCRDs := []*apiextensionsv1.CustomResourceDefinition{}
 	for _, crd := range crds {
-		if h.scope == kubebindv1alpha1.ClusterScope || crd.Spec.Scope == apiextensionsv1.NamespaceScoped {
+		if h.scope == kubewarev1alpha1.ClusterScope || crd.Spec.Scope == apiextensionsv1.NamespaceScoped {
 			rightScopedCRDs = append(rightScopedCRDs, crd)
 		}
 	}
@@ -333,7 +333,7 @@ func (h *handler) handleBind(w http.ResponseWriter, r *http.Request) {
 
 	prepareNoCache(w)
 
-	cookieName := "kube-bind-" + r.URL.Query().Get("s")
+	cookieName := "kubeware-" + r.URL.Query().Get("s")
 	ck, err := r.Cookie(cookieName)
 	if err != nil {
 		logger.Error(err, "failed to get session cookie")
@@ -368,20 +368,20 @@ func (h *handler) handleBind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := kubebindv1alpha1.APIServiceExportRequestResponse{
+	request := kubewarev1alpha1.APIServiceExportRequestResponse{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: kubebindv1alpha1.SchemeGroupVersion.String(),
+			APIVersion: kubewarev1alpha1.SchemeGroupVersion.String(),
 			Kind:       "APIServiceExportRequest",
 		},
-		ObjectMeta: kubebindv1alpha1.NameObjectMeta{
+		ObjectMeta: kubewarev1alpha1.NameObjectMeta{
 			// this is good for one resource. If there are more (in the future),
 			// we need a better name heuristic. Note: it does not have to be unique.
 			// But pretty is better.
 			Name: resource + "." + group,
 		},
-		Spec: kubebindv1alpha1.APIServiceExportRequestSpec{
-			Resources: []kubebindv1alpha1.APIServiceExportRequestResource{
-				{GroupResource: kubebindv1alpha1.GroupResource{Group: group, Resource: resource}},
+		Spec: kubewarev1alpha1.APIServiceExportRequestSpec{
+			Resources: []kubewarev1alpha1.APIServiceExportRequestResource{
+				{GroupResource: kubewarev1alpha1.GroupResource{Group: group, Resource: resource}},
 			},
 		},
 	}
@@ -393,13 +393,13 @@ func (h *handler) handleBind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	response := kubebindv1alpha1.BindingResponse{
+	response := kubewarev1alpha1.BindingResponse{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: kubebindv1alpha1.SchemeGroupVersion.String(),
+			APIVersion: kubewarev1alpha1.SchemeGroupVersion.String(),
 			Kind:       "BindingResponse",
 		},
-		Authentication: kubebindv1alpha1.BindingResponseAuthentication{
-			OAuth2CodeGrant: &kubebindv1alpha1.BindingResponseAuthenticationOAuth2CodeGrant{
+		Authentication: kubewarev1alpha1.BindingResponseAuthentication{
+			OAuth2CodeGrant: &kubewarev1alpha1.BindingResponseAuthenticationOAuth2CodeGrant{
 				SessionID: state.SessionID,
 				ID:        idToken.Issuer + "/" + idToken.Subject,
 			},

@@ -33,16 +33,16 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
+	"go.kubeware.dev/kubeware/pkg/indexers"
 )
 
 const (
-	controllerName = "kube-bind-konnector-servicebinding"
+	controllerName = "kubeware-konnector-servicebinding"
 )
 
 // NewController returns a new controller for ServiceBindings.
@@ -51,7 +51,9 @@ func NewController(
 	serviceBindingInformer bindinformers.APIServiceBindingInformer,
 	consumerSecretInformer coreinformers.SecretInformer,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -77,8 +79,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceBinding, *kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceBinding] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.APIServiceBinding, *kubewarev1alpha1.APIServiceBindingSpec, *kubewarev1alpha1.APIServiceBindingStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.APIServiceBinding] {
 				return consumerBindClient.KubeBindV1alpha1().APIServiceBindings()
 			},
 		),
@@ -89,7 +91,7 @@ func NewController(
 		indexers.ByServiceBindingKubeconfigSecret: indexers.IndexServiceBindingByKubeconfigSecret,
 	})
 
-	serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceBinding(logger, obj)
 		},
@@ -100,8 +102,11 @@ func NewController(
 			c.enqueueServiceBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueConsumerSecret(logger, obj)
 		},
@@ -112,11 +117,14 @@ func NewController(
 			c.enqueueConsumerSecret(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.APIServiceBindingSpec, *kubewarev1alpha1.APIServiceBindingStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // controller reconciles ServiceBindings' kubeconfig secret references. It is
@@ -162,7 +170,7 @@ func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj interface{}) 
 	}
 
 	for _, obj := range bindings {
-		binding := obj.(*kubebindv1alpha1.APIServiceBinding)
+		binding := obj.(*kubewarev1alpha1.APIServiceBinding)
 		key, err := cache.MetaNamespaceKeyFunc(binding)
 		if err != nil {
 			runtime.HandleError(err)

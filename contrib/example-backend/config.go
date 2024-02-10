@@ -26,9 +26,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/kube-bind/kube-bind/contrib/example-backend/options"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
+	"go.kubeware.dev/kubeware/contrib/example-backend/options"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions"
 )
 
 type Config struct {
@@ -58,7 +58,7 @@ func NewConfig(options *options.CompletedOptions) (*Config, error) {
 		return nil, err
 	}
 	config.ClientConfig = rest.CopyConfig(config.ClientConfig)
-	config.ClientConfig = rest.AddUserAgent(config.ClientConfig, "kube-bind-example-backend")
+	config.ClientConfig = rest.AddUserAgent(config.ClientConfig, "kubeware-example-backend")
 
 	if config.BindClient, err = bindclient.NewForConfig(config.ClientConfig); err != nil {
 		return nil, err

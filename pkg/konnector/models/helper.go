@@ -1,5 +1,5 @@
 package models
 
 const (
-	AnnotationProviderClusterID = "provider.kube-bind.io/cluster-id"
+	AnnotationProviderClusterID = "provider.kubeware.dev/cluster-id"
 )

@@ -34,13 +34,13 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/deploy/konnector"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	"github.com/kube-bind/kube-bind/pkg/version"
+	"go.kubeware.dev/kubeware/deploy/konnector"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	"go.kubeware.dev/kubeware/pkg/version"
 )
 
 const (
-	//konnectorImage = "ghcr.io/kube-bind/konnector"
+	//konnectorImage = "ghcr.io/kubeware/konnector"
 	konnectorImage = "superm4n/konnector"
 )
 
@@ -71,7 +71,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 	}
 
 	if b.KonnectorImageOverride != "" {
-		fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace kube-bind with custom image %q.\n", bindVersion, b.KonnectorImageOverride) // nolint: errcheck
+		fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace kubeware with custom image %q.\n", bindVersion, b.KonnectorImageOverride) // nolint: errcheck
 		if err := konnector.Bootstrap(ctx, discoveryClient, dynamicClient, b.KonnectorImageOverride); err != nil {
 			return err
 		}
@@ -104,14 +104,14 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 				fmt.Fprintf(b.Options.ErrOut, "⚠️ Newer konnector %s installed. To downgrade to %s use --downgrade-konnector.\n", konnectorVersion, bindVersion) // nolint: errcheck
 			}
 		} else {
-			fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace kube-bind.\n", bindVersion) // nolint: errcheck
+			fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace kubeware.\n", bindVersion) // nolint: errcheck
 			if err := konnector.Bootstrap(ctx, discoveryClient, dynamicClient, konnectorImage); err != nil {
 				return err
 			}
 		}
 	}
 	first := true
-	return wait.PollImmediateInfiniteWithContext(ctx, 1*time.Second, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (bool, error) {
 		_, err := bindClient.KubeBindV1alpha1().APIServiceBindings().List(ctx, metav1.ListOptions{})
 		if err == nil {
 			if !first {
@@ -132,7 +132,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 }
 
 func currentKonnectorVersion(ctx context.Context, kubeClient kubeclient.Interface) (string, bool, error) {
-	deployment, err := kubeClient.AppsV1().Deployments("kube-bind").Get(ctx, "konnector", metav1.GetOptions{})
+	deployment, err := kubeClient.AppsV1().Deployments("kubeware").Get(ctx, "konnector", metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return "", false, err
 	} else if errors.IsNotFound(err) {

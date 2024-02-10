@@ -27,13 +27,13 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/kube-bind/kube-bind/pkg/bootstrap"
+	"go.kubeware.dev/kubeware/pkg/bootstrap"
 )
 
 //go:embed *.yaml
 var raw embed.FS
 
-func Bootstrap(t *testing.T, discoveryClient discovery.DiscoveryInterface, dynamicClient dynamic.Interface, batteriesIncluded sets.String) {
+func Bootstrap(t *testing.T, discoveryClient discovery.DiscoveryInterface, dynamicClient dynamic.Interface, batteriesIncluded sets.Set[string]) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 

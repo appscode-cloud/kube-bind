@@ -36,29 +36,29 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/yaml"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	clusterscoped "github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	providerfixtures "github.com/kube-bind/kube-bind/test/e2e/bind/fixtures/provider"
-	"github.com/kube-bind/kube-bind/test/e2e/framework"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	clusterscoped "go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
+	providerfixtures "go.kubeware.dev/kubeware/test/e2e/bind/fixtures/provider"
+	"go.kubeware.dev/kubeware/test/e2e/framework"
 )
 
 func TestClusterScoped(t *testing.T) {
 	t.Parallel()
 
 	// cluster scoped resource, with cluster scoped informers
-	testHappyCase(t, apiextensionsv1.ClusterScoped, kubebindv1alpha1.ClusterScope)
+	testHappyCase(t, apiextensionsv1.ClusterScoped, kubewarev1alpha1.ClusterScope)
 }
 
 func TestNamespacedScoped(t *testing.T) {
 	t.Parallel()
 
 	// namespaced resource, with namespace scoped informers
-	testHappyCase(t, apiextensionsv1.NamespaceScoped, kubebindv1alpha1.NamespacedScope)
+	testHappyCase(t, apiextensionsv1.NamespaceScoped, kubewarev1alpha1.NamespacedScope)
 	// namespaced resource, but with cluster scoped informers
-	testHappyCase(t, apiextensionsv1.NamespaceScoped, kubebindv1alpha1.ClusterScope)
+	testHappyCase(t, apiextensionsv1.NamespaceScoped, kubewarev1alpha1.ClusterScope)
 }
 
-func testHappyCase(t *testing.T, resourceScope apiextensionsv1.ResourceScope, informerScope kubebindv1alpha1.Scope) {
+func testHappyCase(t *testing.T, resourceScope apiextensionsv1.ResourceScope, informerScope kubewarev1alpha1.Scope) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 

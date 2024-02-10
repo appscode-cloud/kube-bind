@@ -34,16 +34,16 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
+	"go.kubeware.dev/kubeware/pkg/indexers"
 )
 
 const (
-	controllerName = "kube-bind-example-backend-serviceexport"
+	controllerName = "kubeware-example-backend-serviceexport"
 )
 
 // NewController returns a new controller to reconcile ServiceExports.
@@ -52,7 +52,9 @@ func NewController(
 	serviceExportInformer bindinformers.APIServiceExportInformer,
 	crdInformer apiextensionsinformers.CustomResourceDefinitionInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -82,7 +84,7 @@ func NewController(
 			deleteServiceExport: func(ctx context.Context, ns, name string) error {
 				return bindClient.KubeBindV1alpha1().APIServiceExports(ns).Delete(ctx, name, metav1.DeleteOptions{})
 			},
-			requeue: func(export *kubebindv1alpha1.APIServiceExport) {
+			requeue: func(export *kubewarev1alpha1.APIServiceExport) {
 				key, err := cache.MetaNamespaceKeyFunc(export)
 				if err != nil {
 					runtime.HandleError(err)
@@ -92,8 +94,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceExport, *kubebindv1alpha1.APIServiceExportSpec, *kubebindv1alpha1.APIServiceExportStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceExport] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.APIServiceExport, *kubewarev1alpha1.APIServiceExportSpec, *kubewarev1alpha1.APIServiceExportStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.APIServiceExport] {
 				return bindClient.KubeBindV1alpha1().APIServiceExports(ns)
 			},
 		),
@@ -103,7 +105,7 @@ func NewController(
 		indexers.ServiceExportByCustomResourceDefinition: indexers.IndexServiceExportByCustomResourceDefinition,
 	})
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceExport(logger, obj)
 		},
@@ -114,8 +116,11 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	crdInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = crdInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueCRD(logger, obj)
 		},
@@ -126,11 +131,14 @@ func NewController(
 			c.enqueueCRD(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceExportSpec, *kubebindv1alpha1.APIServiceExportStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.APIServiceExportSpec, *kubewarev1alpha1.APIServiceExportStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // Controller reconciles ServiceNamespaces by creating a Namespace for each, and deleting it if
@@ -176,7 +184,7 @@ func (c *Controller) enqueueCRD(logger klog.Logger, obj interface{}) {
 	}
 
 	for _, obj := range exports {
-		export, ok := obj.(*kubebindv1alpha1.APIServiceExport)
+		export, ok := obj.(*kubewarev1alpha1.APIServiceExport)
 		if !ok {
 			runtime.HandleError(fmt.Errorf("unexpected type %T", obj))
 			return

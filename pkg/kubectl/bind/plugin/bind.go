@@ -19,12 +19,12 @@ package plugin
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
@@ -43,9 +43,9 @@ import (
 	"k8s.io/component-base/logs"
 	logsv1 "k8s.io/component-base/logs/api/v1"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/kubectl/base"
-	"github.com/kube-bind/kube-bind/pkg/kubectl/bind/authenticator"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/kubectl/base"
+	"go.kubeware.dev/kubeware/pkg/kubectl/bind/authenticator"
 )
 
 // BindOptions contains the options for creating an APIBinding.
@@ -155,23 +155,23 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return fmt.Errorf("failed to fetch authentication url %q: %v", exportURL, err)
 	}
 
-	if provider.APIVersion != kubebindv1alpha1.GroupVersion {
+	if provider.APIVersion != kubewarev1alpha1.GroupVersion {
 		return fmt.Errorf("unsupported binding provider version: %q", provider.APIVersion)
 	}
 
-	ns, err := kubeClient.CoreV1().Namespaces().Get(ctx, "kube-bind", metav1.GetOptions{})
+	ns, err := kubeClient.CoreV1().Namespaces().Get(ctx, "kubeware", metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	} else if apierrors.IsNotFound(err) {
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "kube-bind",
+				Name: "kubeware",
 			},
 		}
 		if ns, err = kubeClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 			return err
 		} else {
-			fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kube-bind namespace.\n") // nolint: errcheck
+			fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kubeware namespace.\n") // nolint: errcheck
 		}
 	}
 
@@ -197,10 +197,10 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	fmt.Fprintf(b.IOStreams.ErrOut, "🔑 Successfully authenticated to %s\n", exportURL.String()) // nolint: errcheck
 
 	// verify the response
-	if gvk.GroupVersion() != kubebindv1alpha1.SchemeGroupVersion || gvk.Kind != "BindingResponse" {
-		return fmt.Errorf("unexpected response type %s, only supporting %s", gvk, kubebindv1alpha1.SchemeGroupVersion.WithKind("BindingResponse"))
+	if gvk.GroupVersion() != kubewarev1alpha1.SchemeGroupVersion || gvk.Kind != "BindingResponse" {
+		return fmt.Errorf("unexpected response type %s, only supporting %s", gvk, kubewarev1alpha1.SchemeGroupVersion.WithKind("BindingResponse"))
 	}
-	bindingResponse, ok := response.(*kubebindv1alpha1.BindingResponse)
+	bindingResponse, ok := response.(*kubewarev1alpha1.BindingResponse)
 	if !ok {
 		return fmt.Errorf("unexpected response type %T", response)
 	}
@@ -212,16 +212,16 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	}
 
 	// extract the requests
-	var apiRequests []*kubebindv1alpha1.APIServiceExportRequestResponse
+	var apiRequests []*kubewarev1alpha1.APIServiceExportRequestResponse
 	for i, request := range bindingResponse.Requests {
 		var meta metav1.TypeMeta
 		if err := json.Unmarshal(request.Raw, &meta); err != nil {
 			return fmt.Errorf("unexpected response: failed to unmarshal request #%d: %v", i, err)
 		}
-		if got, expected := meta.APIVersion, kubebindv1alpha1.SchemeGroupVersion.String(); got != expected {
+		if got, expected := meta.APIVersion, kubewarev1alpha1.SchemeGroupVersion.String(); got != expected {
 			return fmt.Errorf("unexpected response: request #%d is not %s, got %s", i, expected, got)
 		}
-		var apiRequest kubebindv1alpha1.APIServiceExportRequestResponse
+		var apiRequest kubewarev1alpha1.APIServiceExportRequestResponse
 		if err := json.Unmarshal(request.Raw, &apiRequest); err != nil {
 			return fmt.Errorf("failed to unmarshal api request #%d: %v", i+1, err)
 		}
@@ -242,9 +242,9 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return err
 	}
 	if created {
-		fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+		fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", "kubeware", secret.Name, remoteHost, remoteNamespace)
 	} else {
-		fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+		fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", "kubeware", secret.Name, remoteHost, remoteNamespace)
 	}
 
 	// print the request in dry-run mode

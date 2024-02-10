@@ -32,30 +32,30 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/clusterbinding"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/namespacedeletion"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/servicebinding"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/clusterbinding"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/namespacedeletion"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/servicebinding"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const (
-	controllerName = "kube-bind-konnector-cluster"
+	controllerName = "kubeware-konnector-cluster"
 
 	heartbeatInterval = 5 * time.Minute // TODO: make configurable
 )
 
 // NewController returns a new controller handling one cluster connection.
 func NewController(
-	reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool,
+	reconcileServiceBinding func(binding *kubewarev1alpha1.APIServiceBinding) bool,
 	consumerConfig *rest.Config,
 	providerInfos []*konnectormodels.ProviderInfo,
 	namespaceInformer dynamic.Informer[corelisters.NamespaceLister],
@@ -189,7 +189,7 @@ func (c *controller) Start(ctx context.Context) {
 		factory.Start(ctx.Done())
 	}
 
-	if err := wait.PollImmediateInfiniteWithContext(ctx, heartbeatInterval, func(ctx context.Context) (bool, error) {
+	if err := wait.PollUntilContextCancel(ctx, heartbeatInterval, true, func(ctx context.Context) (bool, error) {
 		waitCtx, cancel := context.WithDeadline(ctx, time.Now().Add(heartbeatInterval/2))
 		defer cancel()
 
@@ -202,10 +202,10 @@ func (c *controller) Start(ctx context.Context) {
 		case <-ctx.Done():
 			// timeout
 			logger.Info("informers did not sync in time", "timeout", heartbeatInterval/2)
-			c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
+			c.updateServiceBindings(ctx, func(binding *kubewarev1alpha1.APIServiceBinding) {
 				conditions.MarkFalse(
 					binding,
-					kubebindv1alpha1.APIServiceBindingConditionInformersSynced,
+					kubewarev1alpha1.APIServiceBindingConditionInformersSynced,
 					"InformerSyncTimeout",
 					conditionsapi.ConditionSeverityError,
 					"Informers did not sync within %s",
@@ -223,8 +223,8 @@ func (c *controller) Start(ctx context.Context) {
 	}
 
 	logger.V(2).Info("setting InformersSynced condition to true on service binding")
-	c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
-		conditions.MarkTrue(binding, kubebindv1alpha1.APIServiceBindingConditionInformersSynced)
+	c.updateServiceBindings(ctx, func(binding *kubewarev1alpha1.APIServiceBinding) {
+		conditions.MarkTrue(binding, kubewarev1alpha1.APIServiceBindingConditionInformersSynced)
 	})
 
 	go c.clusterbindingCtrl.Start(ctx, 2)
@@ -235,7 +235,7 @@ func (c *controller) Start(ctx context.Context) {
 	<-ctx.Done()
 }
 
-func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubebindv1alpha1.APIServiceBinding)) {
+func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubewarev1alpha1.APIServiceBinding)) {
 	logger := klog.FromContext(ctx)
 
 	if c.providerInfos == nil {
@@ -248,7 +248,7 @@ func (c *controller) updateServiceBindings(ctx context.Context, update func(*kub
 		return
 	}
 	for _, obj := range objs {
-		binding := obj.(*kubebindv1alpha1.APIServiceBinding)
+		binding := obj.(*kubewarev1alpha1.APIServiceBinding)
 		orig := binding
 		binding = binding.DeepCopy()
 		update(binding)

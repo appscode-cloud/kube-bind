@@ -36,14 +36,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	clusterscoped "github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	clusterscoped "go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const (
-	controllerName = "kube-bind-konnector-cluster-status"
+	controllerName = "kubeware-konnector-cluster-status"
 )
 
 // NewController returns a new controller reconciling status of upstream to downstream.
@@ -53,7 +53,9 @@ func NewController(
 	consumerDynamicInformer informers.GenericInformer,
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -93,15 +95,15 @@ func NewController(
 					return konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 				}
 			},
-			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error) {
+			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*kubewarev1alpha1.APIServiceNamespace, error) {
 				sns, err := provider.DynamicServiceNamespaceInformer.Informer().GetIndexer().ByIndex(indexers.ServiceNamespaceByNamespace, upstreamNamespace)
 				if err != nil {
 					return nil, err
 				}
 				if len(sns) == 0 {
-					return nil, errors.NewNotFound(kubebindv1alpha1.SchemeGroupVersion.WithResource("APIServiceNamespace").GroupResource(), upstreamNamespace)
+					return nil, errors.NewNotFound(kubewarev1alpha1.SchemeGroupVersion.WithResource("APIServiceNamespace").GroupResource(), upstreamNamespace)
 				}
-				return sns[0].(*kubebindv1alpha1.APIServiceNamespace), nil
+				return sns[0].(*kubewarev1alpha1.APIServiceNamespace), nil
 			},
 			getConsumerObject: func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error) {
 				if ns != "" {
@@ -144,7 +146,7 @@ func NewController(
 		},
 	}
 
-	consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueConsumer(logger, obj)
 		},
@@ -155,6 +157,9 @@ func NewController(
 			c.enqueueConsumer(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	for _, provider := range c.providerInfos {
 		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -179,7 +184,7 @@ type controller struct {
 
 	gvr schema.GroupVersionResource
 
-	consumerClient, providerClient dynamicclient.Interface
+	consumerClient dynamicclient.Interface
 
 	consumerDynamicLister  dynamiclister.Lister
 	consumerDynamicIndexer cache.Indexer
@@ -210,7 +215,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 			return
 		}
 		for _, obj := range sns {
-			sns := obj.(*kubebindv1alpha1.APIServiceNamespace)
+			sns := obj.(*kubewarev1alpha1.APIServiceNamespace)
 			if sns.Namespace == provider.Namespace {
 				logger.V(2).Info("queueing Unstructured", "key", key)
 				c.queue.Add(provider.ClusterID + "/" + key)
@@ -429,7 +434,7 @@ func (c *controller) removeDownstreamFinalizer(ctx context.Context, obj *unstruc
 	var finalizers []string
 	found := false
 	for _, f := range obj.GetFinalizers() {
-		if f == kubebindv1alpha1.DownstreamFinalizer {
+		if f == kubewarev1alpha1.DownstreamFinalizer {
 			found = true
 			continue
 		}

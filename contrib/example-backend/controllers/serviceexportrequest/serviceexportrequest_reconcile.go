@@ -26,24 +26,24 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1/helpers"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 )
 
 type reconciler struct {
-	informerScope          kubebindv1alpha1.Scope
-	clusterScopedIsolation kubebindv1alpha1.Isolation
+	informerScope          kubewarev1alpha1.Scope
+	clusterScopedIsolation kubewarev1alpha1.Isolation
 
 	getCRD              func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
-	getServiceExport    func(ns, name string) (*kubebindv1alpha1.APIServiceExport, error)
-	createServiceExport func(ctx context.Context, resource *kubebindv1alpha1.APIServiceExport) (*kubebindv1alpha1.APIServiceExport, error)
+	getServiceExport    func(ns, name string) (*kubewarev1alpha1.APIServiceExport, error)
+	createServiceExport func(ctx context.Context, resource *kubewarev1alpha1.APIServiceExport) (*kubewarev1alpha1.APIServiceExport, error)
 
 	deleteServiceExportRequest func(ctx context.Context, namespace, name string) error
 }
 
-func (r *reconciler) reconcile(ctx context.Context, req *kubebindv1alpha1.APIServiceExportRequest) error {
+func (r *reconciler) reconcile(ctx context.Context, req *kubewarev1alpha1.APIServiceExportRequest) error {
 	var errs []error
 
 	if err := r.ensureExports(ctx, req); err != nil {
@@ -55,10 +55,10 @@ func (r *reconciler) reconcile(ctx context.Context, req *kubebindv1alpha1.APISer
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.APIServiceExportRequest) error {
+func (r *reconciler) ensureExports(ctx context.Context, req *kubewarev1alpha1.APIServiceExportRequest) error {
 	logger := klog.FromContext(ctx)
 
-	if req.Status.Phase == kubebindv1alpha1.APIServiceExportRequestPhasePending {
+	if req.Status.Phase == kubewarev1alpha1.APIServiceExportRequestPhasePending {
 		failure := false
 		for _, res := range req.Spec.Resources {
 			name := res.Resource + "." + res.Group
@@ -69,7 +69,7 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 			if apierrors.IsNotFound(err) {
 				conditions.MarkFalse(
 					req,
-					kubebindv1alpha1.APIServiceExportRequestConditionExportsReady,
+					kubewarev1alpha1.APIServiceExportRequestConditionExportsReady,
 					"CRDNotFound",
 					conditionsapi.ConditionSeverityError,
 					"CustomResourceDefinition %s in the service provider cluster not found",
@@ -89,7 +89,7 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 			if err != nil {
 				conditions.MarkFalse(
 					req,
-					kubebindv1alpha1.APIServiceExportRequestConditionExportsReady,
+					kubewarev1alpha1.APIServiceExportRequestConditionExportsReady,
 					"CRDInvalid",
 					conditionsapi.ConditionSeverityError,
 					"CustomResourceDefinition %s cannot be converted to a APIServiceExport: %v",
@@ -100,15 +100,15 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 				break
 			}
 			hash := helpers.APIServiceExportCRDSpecHash(exportSpec)
-			export := &kubebindv1alpha1.APIServiceExport{
+			export := &kubewarev1alpha1.APIServiceExport{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      crd.Name,
 					Namespace: req.Namespace,
 					Annotations: map[string]string{
-						kubebindv1alpha1.SourceSpecHashAnnotationKey: hash,
+						kubewarev1alpha1.SourceSpecHashAnnotationKey: hash,
 					},
 				},
-				Spec: kubebindv1alpha1.APIServiceExportSpec{
+				Spec: kubewarev1alpha1.APIServiceExportSpec{
 					APIServiceExportCRDSpec: *exportSpec,
 					InformerScope:           r.informerScope,
 				},
@@ -124,14 +124,14 @@ func (r *reconciler) ensureExports(ctx context.Context, req *kubebindv1alpha1.AP
 		}
 
 		if !failure {
-			conditions.MarkTrue(req, kubebindv1alpha1.APIServiceExportRequestConditionExportsReady)
-			req.Status.Phase = kubebindv1alpha1.APIServiceExportRequestPhaseSucceeded
+			conditions.MarkTrue(req, kubewarev1alpha1.APIServiceExportRequestConditionExportsReady)
+			req.Status.Phase = kubewarev1alpha1.APIServiceExportRequestPhaseSucceeded
 			return nil
 		}
 
 		if time.Since(req.CreationTimestamp.Time) > time.Minute {
-			req.Status.Phase = kubebindv1alpha1.APIServiceExportRequestPhaseFailed
-			req.Status.TerminalMessage = conditions.GetMessage(req, kubebindv1alpha1.APIServiceExportRequestConditionExportsReady)
+			req.Status.Phase = kubewarev1alpha1.APIServiceExportRequestPhaseFailed
+			req.Status.TerminalMessage = conditions.GetMessage(req, kubewarev1alpha1.APIServiceExportRequestConditionExportsReady)
 		}
 
 		return nil

@@ -7,7 +7,7 @@ coverage.*
 .env
 *.kubeconfig
 .kcp
-.kube-bind
+.kubeware
 /dist
 /hack/tools
 /build

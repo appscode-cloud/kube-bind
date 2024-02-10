@@ -25,14 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 type reconciler struct {
 	getProviderInfo func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error)
 
-	getServiceNamespace func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error)
+	getServiceNamespace func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*kubewarev1alpha1.APIServiceNamespace, error)
 
 	getConsumerObject          func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error)
 	updateConsumerObjectStatus func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
@@ -46,7 +46,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	provider, err := r.getProviderInfo(obj)
 	if err != nil {
-		klog.Errorf("failed to get provider information. ", err.Error())
+		klog.ErrorS(err, "failed to get provider information.")
 		return err
 	}
 

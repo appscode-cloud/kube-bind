@@ -33,13 +33,13 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/spec"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/status"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/spec"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/status"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 type syncInfo struct {
@@ -55,7 +55,7 @@ type reconciler struct {
 	providerInfos []*konnectormodels.ProviderInfo
 
 	getCRD            func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
-	getServiceBinding func(name string) (*kubebindv1alpha1.APIServiceBinding, error)
+	getServiceBinding func(name string) (*kubewarev1alpha1.APIServiceBinding, error)
 }
 
 type syncContext struct {
@@ -63,7 +63,7 @@ type syncContext struct {
 	cancel     func()
 }
 
-func (r *reconciler) reconcile(ctx context.Context, sync *syncInfo, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) reconcile(ctx context.Context, sync *syncInfo, export *kubewarev1alpha1.APIServiceExport) error {
 	errs := []error{}
 
 	if err := r.ensureControllers(ctx, sync, export); err != nil {
@@ -71,10 +71,10 @@ func (r *reconciler) reconcile(ctx context.Context, sync *syncInfo, export *kube
 	}
 
 	if export != nil {
-		if err := r.ensureServiceBindingConditionCopied(ctx, export); err != nil {
+		if err := r.ensureServiceBindingConditionCopied(export); err != nil {
 			errs = append(errs, err)
 		}
-		if err := r.ensureCRDConditionsCopied(ctx, export); err != nil {
+		if err := r.ensureCRDConditionsCopied(export); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -82,7 +82,7 @@ func (r *reconciler) reconcile(ctx context.Context, sync *syncInfo, export *kube
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureControllers(ctx context.Context, sync *syncInfo, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) ensureControllers(ctx context.Context, sync *syncInfo, export *kubewarev1alpha1.APIServiceExport) error {
 	logger := klog.FromContext(ctx)
 
 	if export == nil {
@@ -193,7 +193,7 @@ func (r *reconciler) ensureControllers(ctx context.Context, sync *syncInfo, expo
 			provider.NamespaceUID = string(pns.GetUID())
 		}
 
-		if crd.Spec.Scope == apiextensionsv1.ClusterScoped || export.Spec.InformerScope == kubebindv1alpha1.ClusterScope {
+		if crd.Spec.Scope == apiextensionsv1.ClusterScoped || export.Spec.InformerScope == kubewarev1alpha1.ClusterScope {
 			factory := dynamicinformer.NewDynamicSharedInformerFactory(dynamicProviderClient, time.Minute*30)
 			factory.ForResource(gvr).Lister() // wire the GVR up in the informer factory
 			provider.ProviderDynamicInformer = multinsinformer.GetterInformerWrapper{
@@ -274,14 +274,14 @@ func (r *reconciler) ensureControllers(ctx context.Context, sync *syncInfo, expo
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureServiceBindingConditionCopied(ctx context.Context, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) ensureServiceBindingConditionCopied(export *kubewarev1alpha1.APIServiceExport) error {
 	binding, err := r.getServiceBinding(export.Name)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
 		conditions.MarkFalse(
 			export,
-			kubebindv1alpha1.APIServiceExportConditionConnected,
+			kubewarev1alpha1.APIServiceExportConditionConnected,
 			"APIServiceBindingNotFound",
 			conditionsapi.ConditionSeverityInfo,
 			"No APIServiceBinding exists.",
@@ -289,7 +289,7 @@ func (r *reconciler) ensureServiceBindingConditionCopied(ctx context.Context, ex
 
 		conditions.MarkFalse(
 			export,
-			kubebindv1alpha1.APIServiceExportConditionConsumerInSync,
+			kubewarev1alpha1.APIServiceExportConditionConsumerInSync,
 			"NA",
 			conditionsapi.ConditionSeverityInfo,
 			"No APIServiceBinding exists.",
@@ -298,16 +298,16 @@ func (r *reconciler) ensureServiceBindingConditionCopied(ctx context.Context, ex
 		return nil
 	}
 
-	conditions.MarkTrue(export, kubebindv1alpha1.APIServiceExportConditionConnected)
+	conditions.MarkTrue(export, kubewarev1alpha1.APIServiceExportConditionConnected)
 
-	if inSync := conditions.Get(binding, kubebindv1alpha1.APIServiceBindingConditionSchemaInSync); inSync != nil {
+	if inSync := conditions.Get(binding, kubewarev1alpha1.APIServiceBindingConditionSchemaInSync); inSync != nil {
 		inSync := inSync.DeepCopy()
-		inSync.Type = kubebindv1alpha1.APIServiceExportConditionConsumerInSync
+		inSync.Type = kubewarev1alpha1.APIServiceExportConditionConsumerInSync
 		conditions.Set(export, inSync)
 	} else {
 		conditions.MarkFalse(
 			export,
-			kubebindv1alpha1.APIServiceExportConditionConsumerInSync,
+			kubewarev1alpha1.APIServiceExportConditionConsumerInSync,
 			"Unknown",
 			conditionsapi.ConditionSeverityInfo,
 			"APIServiceBinding %s in the consumer cluster does not have a SchemaInSync condition.",
@@ -318,7 +318,7 @@ func (r *reconciler) ensureServiceBindingConditionCopied(ctx context.Context, ex
 	return nil
 }
 
-func (r *reconciler) ensureCRDConditionsCopied(ctx context.Context, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) ensureCRDConditionsCopied(export *kubewarev1alpha1.APIServiceExport) error {
 	crd, err := r.getCRD(export.Name)
 	if err != nil && !errors.IsNotFound(err) {
 		return err

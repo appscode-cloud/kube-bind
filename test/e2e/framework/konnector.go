@@ -27,10 +27,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	"github.com/kube-bind/kube-bind/deploy/crd"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/konnector"
-	"github.com/kube-bind/kube-bind/pkg/konnector/options"
+	"go.kubeware.dev/kubeware/deploy/crd"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/konnector"
+	"go.kubeware.dev/kubeware/pkg/konnector/options"
 )
 
 func StartKonnector(t *testing.T, clientConfig *rest.Config, args ...string) *konnector.Server {
@@ -41,7 +41,7 @@ func StartKonnector(t *testing.T, clientConfig *rest.Config, args ...string) *ko
 	require.NoError(t, err)
 	err = crd.Create(ctx,
 		crdClient.ApiextensionsV1().CustomResourceDefinitions(),
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiservicebindings"},
+		metav1.GroupResource{Group: kubewarev1alpha1.GroupName, Resource: "apiservicebindings"},
 	)
 	require.NoError(t, err)
 

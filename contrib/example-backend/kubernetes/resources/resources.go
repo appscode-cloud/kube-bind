@@ -19,10 +19,10 @@ package resources
 const (
 	ServiceAccountTokenType       = "kubernetes.io/service-account-token"
 	ServiceAccountTokenAnnotation = "kubernetes.io/service-account.name"
-	ServiceAccountName            = "kube-binder"
+	ServiceAccountName            = "kubeware"
 	KubeconfigSecretName          = "kubeconfig"
 	ClusterBindingName            = "cluster"
 
 	//TODO(MQ): maybe think of a better label name.
-	ExportedCRDsLabel = "kube-bind.io/exported"
+	ExportedCRDsLabel = "kubeware.dev/exported"
 )

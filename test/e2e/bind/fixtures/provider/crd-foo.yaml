@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   name: foos.bar.io
   labels:
-    kube-bind.io/exported: "true"
+    kubeware.dev/exported: "true"
 spec:
   group: bar.io
   versions:
@@ -32,15 +32,15 @@ spec:
                 phase:
                   type: string
                   enum:
-                  - Pending
-                  - Running
-                  - Succeeded
-                  - Failed
-                  - Unknown
+                    - Pending
+                    - Running
+                    - Succeeded
+                    - Failed
+                    - Unknown
       # subresources for the custom resource
       subresources:
         # enables the status subresource
-        status: {}
+        status: { }
   names:
     kind: Foo
     plural: foos

@@ -19,27 +19,26 @@ package clusterbinding
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"reflect"
 	"time"
 
+	kuberesources "go.kubeware.dev/kubeware/contrib/example-backend/kubernetes/resources"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
-
-	kuberesources "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
 )
 
 type reconciler struct {
-	scope kubebindv1alpha1.Scope
+	scope kubewarev1alpha1.Scope
 
-	listServiceExports func(ns string) ([]*kubebindv1alpha1.APIServiceExport, error)
+	listServiceExports func(ns string) ([]*kubewarev1alpha1.APIServiceExport, error)
 
 	getClusterRole    func(name string) (*rbacv1.ClusterRole, error)
 	createClusterRole func(ctx context.Context, binding *rbacv1.ClusterRole) (*rbacv1.ClusterRole, error)
@@ -57,15 +56,13 @@ type reconciler struct {
 	getNamespace func(name string) (*corev1.Namespace, error)
 }
 
-func (r *reconciler) reconcile(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
+func (r *reconciler) reconcile(ctx context.Context, clusterBinding *kubewarev1alpha1.ClusterBinding) error {
 	var errs []error
 
 	if err := r.ensureKubeSystemNSAccess(ctx, clusterBinding); err != nil {
 		errs = append(errs, err)
 	}
-	if err := r.ensureClusterBindingConditions(ctx, clusterBinding); err != nil {
-		errs = append(errs, err)
-	}
+	r.ensureClusterBindingConditions(clusterBinding)
 	if err := r.ensureRBACRoleBinding(ctx, clusterBinding); err != nil {
 		errs = append(errs, err)
 	}
@@ -81,24 +78,24 @@ func (r *reconciler) reconcile(ctx context.Context, clusterBinding *kubebindv1al
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureClusterBindingConditions(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
+func (r *reconciler) ensureClusterBindingConditions(clusterBinding *kubewarev1alpha1.ClusterBinding) {
 	if clusterBinding.Status.LastHeartbeatTime.IsZero() {
 		conditions.MarkFalse(clusterBinding,
-			kubebindv1alpha1.ClusterBindingConditionHealthy,
+			kubewarev1alpha1.ClusterBindingConditionHealthy,
 			"FirstHeartbeatPending",
 			conditionsapi.ConditionSeverityInfo,
 			"Waiting for first heartbeat",
 		)
 	} else if clusterBinding.Status.HeartbeatInterval.Duration == 0 {
 		conditions.MarkFalse(clusterBinding,
-			kubebindv1alpha1.ClusterBindingConditionHealthy,
+			kubewarev1alpha1.ClusterBindingConditionHealthy,
 			"HeartbeatIntervalMissing",
 			conditionsapi.ConditionSeverityInfo,
 			"Waiting for consumer cluster reporting its heartbeat interval",
 		)
 	} else if ago := time.Since(clusterBinding.Status.LastHeartbeatTime.Time); ago > clusterBinding.Status.HeartbeatInterval.Duration*2 {
 		conditions.MarkFalse(clusterBinding,
-			kubebindv1alpha1.ClusterBindingConditionHealthy,
+			kubewarev1alpha1.ClusterBindingConditionHealthy,
 			"HeartbeatTimeout",
 			conditionsapi.ConditionSeverityError,
 			"Heartbeat timeout: expected heartbeat within %s, but last one has been at %s",
@@ -107,22 +104,20 @@ func (r *reconciler) ensureClusterBindingConditions(ctx context.Context, cluster
 		)
 	} else if ago < time.Second*10 {
 		conditions.MarkFalse(clusterBinding,
-			kubebindv1alpha1.ClusterBindingConditionHealthy,
+			kubewarev1alpha1.ClusterBindingConditionHealthy,
 			"HeartbeatTimeDrift",
 			conditionsapi.ConditionSeverityWarning,
 			"Clocks of consumer cluster and service account cluster seem to be off by more than 10s",
 		)
 	} else {
 		conditions.MarkTrue(clusterBinding,
-			kubebindv1alpha1.ClusterBindingConditionHealthy,
+			kubewarev1alpha1.ClusterBindingConditionHealthy,
 		)
 	}
-
-	return nil
 }
 
-func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
-	roleName := "kube-binder-namespace"
+func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBinding *kubewarev1alpha1.ClusterBinding) error {
+	roleName := "kubeware-namespace"
 	clusterRole, err := r.getClusterRole(roleName)
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get ClusterRole %s: %w", roleName, err)
@@ -146,7 +141,7 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 		},
 	}
 	if clusterRole == nil {
-		clusterRole, err = r.createClusterRole(ctx, expectedRole)
+		_, err = r.createClusterRole(ctx, expectedRole)
 		if err != nil {
 			return err
 		}
@@ -163,7 +158,7 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 					APIVersion: "v1",
 					Kind:       "Namespace",
 					Name:       clusterBinding.Namespace,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 					UID:        ns.UID,
 				},
 			},
@@ -187,7 +182,7 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 		return err
 	}
 	if rb == nil {
-		rb, err = r.createClusterRoleBinding(ctx, expectedRB)
+		_, err = r.createClusterRoleBinding(ctx, expectedRB)
 		if err != nil {
 			return err
 		}
@@ -197,8 +192,8 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 	return nil
 }
 
-func (r *reconciler) ensureRBACClusterRole(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
-	name := "kube-binder-" + clusterBinding.Namespace
+func (r *reconciler) ensureRBACClusterRole(ctx context.Context, clusterBinding *kubewarev1alpha1.ClusterBinding) error {
+	name := "kubeware-" + clusterBinding.Namespace
 	role, err := r.getClusterRole(name)
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get ClusterRole %s: %w", name, err)
@@ -221,7 +216,7 @@ func (r *reconciler) ensureRBACClusterRole(ctx context.Context, clusterBinding *
 					APIVersion: "v1",
 					Kind:       "Namespace",
 					Name:       clusterBinding.Namespace,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 					UID:        ns.UID,
 				},
 			},
@@ -250,14 +245,14 @@ func (r *reconciler) ensureRBACClusterRole(ctx context.Context, clusterBinding *
 	return nil
 }
 
-func (r *reconciler) ensureRBACClusterRoleBinding(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
-	name := "kube-binder-" + clusterBinding.Namespace
+func (r *reconciler) ensureRBACClusterRoleBinding(ctx context.Context, clusterBinding *kubewarev1alpha1.ClusterBinding) error {
+	name := "kubeware-" + clusterBinding.Namespace
 	binding, err := r.getClusterRoleBinding(name)
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get ClusterRoleBinding %s: %w", name, err)
 	}
 
-	if r.scope != kubebindv1alpha1.ClusterScope {
+	if r.scope != kubewarev1alpha1.ClusterScope {
 		if err := r.deleteClusterRoleBinding(ctx, name); err != nil && !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete ClusterRoleBinding %s: %w", name, err)
 		}
@@ -276,7 +271,7 @@ func (r *reconciler) ensureRBACClusterRoleBinding(ctx context.Context, clusterBi
 					APIVersion: "v1",
 					Kind:       "Namespace",
 					Name:       clusterBinding.Namespace,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 					UID:        ns.UID,
 				},
 			},
@@ -311,10 +306,10 @@ func (r *reconciler) ensureRBACClusterRoleBinding(ctx context.Context, clusterBi
 	return nil
 }
 
-func (r *reconciler) ensureRBACRoleBinding(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
-	binding, err := r.getRoleBinding(clusterBinding.Namespace, "kube-binder")
+func (r *reconciler) ensureRBACRoleBinding(ctx context.Context, clusterBinding *kubewarev1alpha1.ClusterBinding) error {
+	binding, err := r.getRoleBinding(clusterBinding.Namespace, "kubeware")
 	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get RoleBinding \"kube-binder\": %w", err)
+		return fmt.Errorf("failed to get RoleBinding \"kubeware\": %w", err)
 	}
 
 	expected := &rbacv1.RoleBinding{
@@ -331,7 +326,7 @@ func (r *reconciler) ensureRBACRoleBinding(ctx context.Context, clusterBinding *
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "kube-binder",
+			Name:     "kubeware",
 		},
 	}
 

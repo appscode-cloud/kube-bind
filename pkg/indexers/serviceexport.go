@@ -17,7 +17,7 @@ limitations under the License.
 package indexers
 
 import (
-	"github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 const (

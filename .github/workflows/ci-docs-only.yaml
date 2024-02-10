@@ -5,8 +5,8 @@ name: CI
 on:
   pull_request:
     branches:
-    - main
-    - 'release-*'
+      - main
+      - 'release-*'
     paths:
       - "docs/**"
       - "**/*.md"
@@ -31,10 +31,10 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-    - run: 'echo "No build required"'
+      - run: 'echo "No build required"'
 
   verify:
     name: verify
     runs-on: ubuntu-latest
     steps:
-    - run: 'echo "No build required"'
+      - run: 'echo "No build required"'

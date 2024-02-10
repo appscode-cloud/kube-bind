@@ -34,28 +34,30 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const (
-	controllerName = "kube-bind-konnector-cluster-servicebinding"
+	controllerName = "kubeware-konnector-cluster-servicebinding"
 )
 
 // NewController returns a new controller for ServiceBindings.
 func NewController(
-	reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool,
+	reconcileServiceBinding func(binding *kubewarev1alpha1.APIServiceBinding) bool,
 	consumerConfig *rest.Config,
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister],
 	crdInformer dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister],
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -95,16 +97,16 @@ func NewController(
 
 			reconcileServiceBinding: reconcileServiceBinding,
 
-			getServiceExport: func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceExport, error) {
+			getServiceExport: func(provider *konnectormodels.ProviderInfo, name string) (*kubewarev1alpha1.APIServiceExport, error) {
 				return provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Lister().APIServiceExports(provider.Namespace).Get(name)
 			},
-			getServiceBinding: func(name string) (*kubebindv1alpha1.APIServiceBinding, error) {
+			getServiceBinding: func(name string) (*kubewarev1alpha1.APIServiceBinding, error) {
 				return serviceBindingInformer.Lister().Get(name)
 			},
-			getClusterBinding: func(ctx context.Context, provider *konnectormodels.ProviderInfo) (*kubebindv1alpha1.ClusterBinding, error) {
+			getClusterBinding: func(ctx context.Context, provider *konnectormodels.ProviderInfo) (*kubewarev1alpha1.ClusterBinding, error) {
 				return provider.BindClient.KubeBindV1alpha1().ClusterBindings(provider.Namespace).Get(ctx, "cluster", metav1.GetOptions{})
 			},
-			updateServiceExportStatus: func(ctx context.Context, export *kubebindv1alpha1.APIServiceExport, clusterID string) (*kubebindv1alpha1.APIServiceExport, error) {
+			updateServiceExportStatus: func(ctx context.Context, export *kubewarev1alpha1.APIServiceExport, clusterID string) (*kubewarev1alpha1.APIServiceExport, error) {
 				provider, err := konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 				if err != nil {
 					return nil, err
@@ -122,8 +124,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceBinding, *kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceBinding] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.APIServiceBinding, *kubewarev1alpha1.APIServiceBindingSpec, *kubewarev1alpha1.APIServiceBindingStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.APIServiceBinding] {
 				return consumerBindClient.KubeBindV1alpha1().APIServiceBindings()
 			},
 		),
@@ -134,7 +136,7 @@ func NewController(
 			indexers.ServiceExportByCustomResourceDefinition: indexers.IndexServiceExportByCustomResourceDefinition,
 		})
 
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceExport(logger, obj, provider)
 			},
@@ -145,12 +147,15 @@ func NewController(
 				c.enqueueServiceExport(logger, obj, provider)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.APIServiceBindingSpec, *kubewarev1alpha1.APIServiceBindingStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // controller reconciles ServiceBindings with there ServiceExports counterparts.
@@ -189,7 +194,7 @@ func (c *controller) enqueueServiceExport(logger klog.Logger, obj interface{}, p
 	fmt.Println(bindings)
 
 	for _, obj := range bindings {
-		binding := obj.(*kubebindv1alpha1.APIServiceBinding)
+		binding := obj.(*kubewarev1alpha1.APIServiceBinding)
 		key, err := cache.MetaNamespaceKeyFunc(binding)
 		if err != nil {
 			runtime.HandleError(err)
@@ -219,7 +224,7 @@ func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
 		}
 	}
 	for _, obj := range exports {
-		export := obj.(*kubebindv1alpha1.APIServiceExport)
+		export := obj.(*kubewarev1alpha1.APIServiceExport)
 		key := export.Name
 		logger.V(2).Info("queueing APIServiceBinding", "key", key, "reason", "CustomResourceDefinition", "CustomResourceDefinitionKey", name)
 		c.queue.Add(key)

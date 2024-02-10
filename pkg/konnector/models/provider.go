@@ -1,18 +1,19 @@
 package models
 
 import (
-	"errors"
 	"fmt"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	dynamicclient "k8s.io/client-go/dynamic"
 	kubernetesinformers "k8s.io/client-go/informers"
 	kubernetesclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
 )
 
 type ProviderInfo struct {
@@ -34,7 +35,7 @@ func GetProviderInfoWithClusterID(providerInfos []*ProviderInfo, clusterID strin
 			return info, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("no provider information found with cluster id: %s", clusterID))
+	return nil, fmt.Errorf("no provider information found with cluster id: %s", clusterID)
 }
 
 func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, providerNamespace string) (*ProviderInfo, error) {
@@ -43,7 +44,7 @@ func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, provide
 			return info, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("no provider information found with namespace: %s", providerNamespace))
+	return nil, fmt.Errorf("no provider information found with namespace: %s", providerNamespace)
 }
 
 func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
@@ -53,10 +54,7 @@ func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
 	}
 	annos := unstr.GetAnnotations()
 
-	if annos[AnnotationProviderClusterID] == provider.ClusterID {
-		return true
-	}
-	return false
+	return annos[AnnotationProviderClusterID] == provider.ClusterID
 }
 
 func GetProviderFromObjectInterface(providerInfos []*ProviderInfo, obj interface{}) (*ProviderInfo, error) {

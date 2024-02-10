@@ -35,10 +35,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
 )
 
 const (
@@ -191,7 +191,10 @@ func (inf *DynamicMultiNamespaceInformer) enqueueServiceNamespace(obj interface{
 	inf.namespaceInformers[name] = gvrInf
 
 	for _, h := range inf.handlers {
-		gvrInf.Informer().AddEventHandler(h)
+		_, err := gvrInf.Informer().AddEventHandler(h)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	factory.Start(ctx.Done())
@@ -202,7 +205,10 @@ func (inf *DynamicMultiNamespaceInformer) AddEventHandler(handler cache.Resource
 	defer inf.lock.Unlock()
 
 	for _, i := range inf.namespaceInformers {
-		i.Informer().AddEventHandler(handler)
+		_, err := i.Informer().AddEventHandler(handler)
+		if err != nil {
+			panic(err)
+		}
 	}
 	inf.handlers = append(inf.handlers, handler)
 }
@@ -217,7 +223,7 @@ func (inf *DynamicMultiNamespaceInformer) Get(ns, name string) (runtime.Object, 
 	} else if len(snss) > 1 {
 		return nil, fmt.Errorf("unexpected multiple APIServiceNamespaces for namespace %s", ns)
 	}
-	sns := snss[0].(*kubebindv1alpha1.APIServiceNamespace)
+	sns := snss[0].(*kubewarev1alpha1.APIServiceNamespace)
 
 	inf.lock.RLock()
 	defer inf.lock.RUnlock()
@@ -238,7 +244,7 @@ func (inf *DynamicMultiNamespaceInformer) List(ns string) ([]runtime.Object, err
 	} else if len(snss) > 1 {
 		return nil, fmt.Errorf("unexpected multiple APIServiceNamespaces for namespace %s", ns)
 	}
-	sns := snss[0].(*kubebindv1alpha1.APIServiceNamespace)
+	sns := snss[0].(*kubewarev1alpha1.APIServiceNamespace)
 
 	inf.lock.RLock()
 	defer inf.lock.RUnlock()
@@ -256,7 +262,7 @@ func (inf *DynamicMultiNamespaceInformer) WaitForCacheSync(stopCh <-chan struct{
 		return nil
 	}
 
-	if err := wait.PollImmediateUntil(time.Millisecond*100, func() (done bool, err error) {
+	if err := wait.PollUntilContextCancel(wait.ContextForChannel(stopCh), time.Millisecond*100, true, func(ctx context.Context) (done bool, err error) {
 		inf.lock.RLock()
 		defer inf.lock.RUnlock()
 		for _, sns := range snss {
@@ -273,7 +279,7 @@ func (inf *DynamicMultiNamespaceInformer) WaitForCacheSync(stopCh <-chan struct{
 			}
 		}
 		return true, nil
-	}, stopCh); err != nil {
+	}); err != nil {
 		return map[schema.GroupVersionResource]bool{inf.gvr: false}
 	}
 	return map[schema.GroupVersionResource]bool{inf.gvr: true}
@@ -298,7 +304,10 @@ func (w GetterInformerWrapper) List(ns string) ([]runtime.Object, error) {
 }
 
 func (w GetterInformerWrapper) AddEventHandler(handler cache.ResourceEventHandler) {
-	w.Delegate.ForResource(w.GVR).Informer().AddEventHandler(handler)
+	_, err := w.Delegate.ForResource(w.GVR).Informer().AddEventHandler(handler)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (w GetterInformerWrapper) Start(ctx context.Context) {

@@ -36,19 +36,19 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const (
-	controllerName = "kube-bind-konnector-clusterbinding"
+	controllerName = "kubeware-konnector-clusterbinding"
 )
 
 // NewController returns a new controller for ClusterBindings.
@@ -59,7 +59,9 @@ func NewController(
 	consumerSecretInformer coreinformers.SecretInformer,
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -132,8 +134,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.ClusterBinding, *kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.ClusterBinding] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.ClusterBinding, *kubewarev1alpha1.ClusterBindingSpec, *kubewarev1alpha1.ClusterBindingStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.ClusterBinding] {
 				providerInfo, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
 				if err != nil {
 					klog.Warningf(err.Error())
@@ -145,7 +147,7 @@ func NewController(
 	}
 
 	for _, provider := range providerInfos {
-		provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueClusterBinding(logger, obj)
 			},
@@ -156,8 +158,11 @@ func NewController(
 				c.enqueueClusterBinding(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		provider.KubeInformer.Core().V1().Secrets().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.KubeInformer.Core().V1().Secrets().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueProviderSecret(logger, obj, c.providerInfos)
 			},
@@ -168,17 +173,20 @@ func NewController(
 				c.enqueueProviderSecret(logger, obj, c.providerInfos)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceExport(logger, obj)
 			},
 			UpdateFunc: func(old, newObj interface{}) {
-				oldExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+				oldExport, ok := old.(*kubewarev1alpha1.APIServiceExport)
 				if !ok {
 					return
 				}
-				newExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+				newExport, ok := old.(*kubewarev1alpha1.APIServiceExport)
 				if !ok {
 					return
 				}
@@ -191,8 +199,11 @@ func NewController(
 				c.enqueueServiceExport(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
@@ -203,12 +214,15 @@ func NewController(
 				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.ClusterBindingSpec, *kubewarev1alpha1.ClusterBindingStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // controller reconciles ClusterBindings on the service provider cluster, including heartbeating.
@@ -217,8 +231,6 @@ type controller struct {
 
 	consumerBindClient bindclient.Interface
 	consumerKubeClient kubernetesclient.Interface
-
-	clusterBindingIndexer cache.Indexer
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 
@@ -329,7 +341,7 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 	// start the heartbeat
 	// nolint:errcheck
 	for _, provider := range c.providerInfos {
-		wait.PollInfiniteWithContext(ctx, c.heartbeatInterval/2, func(ctx context.Context) (bool, error) {
+		wait.PollUntilContextCancel(ctx, c.heartbeatInterval/2, true, func(ctx context.Context) (bool, error) {
 			c.queue.Add(provider.Namespace + "/cluster")
 			return false, nil
 		})
@@ -422,10 +434,10 @@ func (c *controller) process(ctx context.Context, key string) error {
 		errs = append(errs, err)
 
 		// try to update service bindings
-		c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
+		c.updateServiceBindings(ctx, func(binding *kubewarev1alpha1.APIServiceBinding) {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionHeartbeating,
+				kubewarev1alpha1.APIServiceBindingConditionHeartbeating,
 				"ClusterBindingUpdateFailed",
 				conditionsapi.ConditionSeverityWarning,
 				"Failed to update service provider ClusterBinding: %v", err,
@@ -433,15 +445,15 @@ func (c *controller) process(ctx context.Context, key string) error {
 		}, consumerSecretRefKey)
 	} else {
 		// try to update service bindings
-		c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
-			conditions.MarkTrue(binding, kubebindv1alpha1.APIServiceBindingConditionHeartbeating)
+		c.updateServiceBindings(ctx, func(binding *kubewarev1alpha1.APIServiceBinding) {
+			conditions.MarkTrue(binding, kubewarev1alpha1.APIServiceBindingConditionHeartbeating)
 		}, consumerSecretRefKey)
 	}
 
 	return utilerrors.NewAggregate(errs)
 }
 
-func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubebindv1alpha1.APIServiceBinding), consumerSecretRefKey string) {
+func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubewarev1alpha1.APIServiceBinding), consumerSecretRefKey string) {
 	logger := klog.FromContext(ctx)
 
 	objs, err := c.serviceBindingInformer.Informer().GetIndexer().ByIndex(indexers.ByServiceBindingKubeconfigSecret, consumerSecretRefKey)
@@ -450,7 +462,7 @@ func (c *controller) updateServiceBindings(ctx context.Context, update func(*kub
 		return
 	}
 	for _, obj := range objs {
-		binding := obj.(*kubebindv1alpha1.APIServiceBinding)
+		binding := obj.(*kubewarev1alpha1.APIServiceBinding)
 		orig := binding
 		binding = binding.DeepCopy()
 		update(binding)

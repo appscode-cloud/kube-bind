@@ -30,11 +30,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	kuberesources "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
+	kuberesources "go.kubeware.dev/kubeware/contrib/example-backend/kubernetes/resources"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/indexers"
 )
 
 type Manager struct {
@@ -66,7 +66,7 @@ func NewKubernetesManager(
 	exportInformer bindinformers.APIServiceExportInformer,
 ) (*Manager, error) {
 	config = rest.CopyConfig(config)
-	config = rest.AddUserAgent(config, "kube-bind-example-backend-kubernetes-manager")
+	config = rest.AddUserAgent(config, "kubeware-example-backend-kubernetes-manager")
 
 	kubeClient, err := kubeclient.NewForConfig(config)
 	if err != nil {

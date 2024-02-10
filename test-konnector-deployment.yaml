@@ -6,7 +6,7 @@ metadata:
   labels:
     app: konnector
   name: konnector
-  namespace: kube-bind
+  namespace: kubeware
 spec:
   progressDeadlineSeconds: 600
   replicas: 2
@@ -25,27 +25,27 @@ spec:
         app: konnector
     spec:
       containers:
-      - env:
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.namespace
-        image: superm4n/konnector
-        imagePullPolicy: Always
-        name: konnector
-        resources: {}
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
+        - env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          image: superm4n/konnector
+          imagePullPolicy: Always
+          name: konnector
+          resources: { }
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
+      securityContext: { }
       serviceAccount: konnector
       serviceAccountName: konnector
       terminationGracePeriodSeconds: 30

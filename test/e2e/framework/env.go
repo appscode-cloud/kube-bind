@@ -29,6 +29,6 @@ var (
 func init() {
 	if WorkDir == "" {
 		_, f, _, _ := runtime.Caller(0)
-		WorkDir = filepath.Clean(filepath.Join(f, "..", "..", "..", "..", ".kube-bind"))
+		WorkDir = filepath.Clean(filepath.Join(f, "..", "..", "..", "..", ".kubeware"))
 	}
 }

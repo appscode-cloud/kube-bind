@@ -22,11 +22,10 @@ import (
 	"fmt"
 	"net/http"
 
+	kubebindv1alpha1 "go.kubeware.dev/kubeware/pkg/client/clientset/versioned/typed/kubeware/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1"
 )
 
 type Interface interface {
@@ -34,8 +33,7 @@ type Interface interface {
 	KubeBindV1alpha1() kubebindv1alpha1.KubeBindV1alpha1Interface
 }
 
-// Clientset contains the clients for groups. Each group has exactly one
-// version included in a Clientset.
+// Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
 	kubeBindV1alpha1 *kubebindv1alpha1.KubeBindV1alpha1Client

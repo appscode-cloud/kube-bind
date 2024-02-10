@@ -39,8 +39,8 @@ import (
 	logsv1 "k8s.io/component-base/logs/api/v1"
 	"sigs.k8s.io/yaml"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/kubectl/base"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/kubectl/base"
 )
 
 // BindAPIServiceOptions are the options for the kubectl-bind-apiservice command.
@@ -257,12 +257,12 @@ func (b *BindAPIServiceOptions) getRequestManifest() ([]byte, error) {
 	return body, nil
 }
 
-func (b *BindAPIServiceOptions) unmarshalManifest(bs []byte) (*kubebindv1alpha1.APIServiceExportRequest, error) {
-	var request kubebindv1alpha1.APIServiceExportRequest
+func (b *BindAPIServiceOptions) unmarshalManifest(bs []byte) (*kubewarev1alpha1.APIServiceExportRequest, error) {
+	var request kubewarev1alpha1.APIServiceExportRequest
 	if err := yaml.Unmarshal(bs, &request); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
-	if request.APIVersion != kubebindv1alpha1.SchemeGroupVersion.String() {
+	if request.APIVersion != kubewarev1alpha1.SchemeGroupVersion.String() {
 		return nil, fmt.Errorf("invalid apiVersion %q", request.APIVersion)
 	}
 	if request.Kind != "APIServiceExportRequest" {

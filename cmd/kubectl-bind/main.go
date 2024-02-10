@@ -18,21 +18,14 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
-	"os"
-	"time"
-
 	"github.com/spf13/pflag"
+	"os"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	apiservicecmd "github.com/kube-bind/kube-bind/pkg/kubectl/bind-apiservice/cmd"
-	bindcmd "github.com/kube-bind/kube-bind/pkg/kubectl/bind/cmd"
+	apiservicecmd "go.kubeware.dev/kubeware/pkg/kubectl/bind-apiservice/cmd"
+	bindcmd "go.kubeware.dev/kubeware/pkg/kubectl/bind/cmd"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixMilli())
-}
 
 func main() {
 	flags := pflag.NewFlagSet("kubectl-bind", pflag.ExitOnError)

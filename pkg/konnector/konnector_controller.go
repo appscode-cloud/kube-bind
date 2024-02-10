@@ -35,20 +35,20 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/servicebinding"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/dynamic"
+	"go.kubeware.dev/kubeware/pkg/konnector/controllers/servicebinding"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 )
 
 const (
-	controllerName = "kube-bind-konnector"
+	controllerName = "kubeware-konnector"
 )
 
 // New returns a konnector controller.
@@ -59,7 +59,9 @@ func New(
 	namespaceInformer coreinformers.NamespaceInformer,
 	crdInformer crdinformers.CustomResourceDefinitionInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("Controller", controllerName)
 
@@ -99,7 +101,7 @@ func New(
 				return secretInformer.Lister().Secrets(ns).Get(name)
 			},
 			providerInfos: make([]*konnectormodels.ProviderInfo, 0),
-			newClusterController: func(providerInfos []*konnectormodels.ProviderInfo, reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool) (startable, error) {
+			newClusterController: func(providerInfos []*konnectormodels.ProviderInfo, reconcileServiceBinding func(binding *kubewarev1alpha1.APIServiceBinding) bool) (startable, error) {
 
 				for _, provider := range providerInfos {
 					provider.Config = rest.CopyConfig(provider.Config)
@@ -117,8 +119,8 @@ func New(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceBinding, *kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceBinding] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.APIServiceBinding, *kubewarev1alpha1.APIServiceBindingSpec, *kubewarev1alpha1.APIServiceBindingStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.APIServiceBinding] {
 				return bindClient.KubeBindV1alpha1().APIServiceBindings()
 			},
 		),
@@ -133,7 +135,7 @@ func New(
 		indexers.CRDByServiceBinding: indexers.IndexCRDByServiceBinding,
 	})
 
-	serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceBinding(logger, obj)
 		},
@@ -144,8 +146,11 @@ func New(
 			c.enqueueServiceBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueSecret(logger, obj)
 		},
@@ -156,10 +161,14 @@ func New(
 			c.enqueueSecret(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
+
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.APIServiceBindingSpec, *kubewarev1alpha1.APIServiceBindingStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 type GenericController interface {

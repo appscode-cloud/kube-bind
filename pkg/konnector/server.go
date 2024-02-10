@@ -23,8 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/deploy/crd"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.kubeware.dev/kubeware/deploy/crd"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 type Server struct {
@@ -65,7 +65,7 @@ func (s *Server) PrepareRun(ctx context.Context) (Prepared, error) {
 	// install/upgrade CRDs
 	if err := crd.Create(ctx,
 		s.Config.ApiextensionsClient.ApiextensionsV1().CustomResourceDefinitions(),
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiservicebindings"},
+		metav1.GroupResource{Group: kubewarev1alpha1.GroupName, Resource: "apiservicebindings"},
 	); err != nil {
 		return Prepared{}, err
 	}

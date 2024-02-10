@@ -60,7 +60,7 @@ func NewOptions() *Options {
 		Logs: logs,
 
 		ExtraOptions: ExtraOptions{
-			LeaseLockName:      "kube-bind",
+			LeaseLockName:      "kubeware",
 			LeaseLockNamespace: os.Getenv("POD_NAMESPACE"),
 			LeaseLockIdentity:  os.Getenv("POD_NAME"),
 		},

@@ -26,7 +26,7 @@ import (
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/kube-bind/kube-bind/pkg/kubectl/base"
+	"go.kubeware.dev/kubeware/pkg/kubectl/base"
 )
 
 func (b *BindAPIServiceOptions) createKubeconfigSecret(ctx context.Context, config *rest.Config, remoteHost, remoteNamespace, kubeconfig string) (string, error) {
@@ -35,15 +35,15 @@ func (b *BindAPIServiceOptions) createKubeconfigSecret(ctx context.Context, conf
 		return "", err
 	}
 
-	// create kube-bind namespace
+	// create kubeware namespace
 	if _, err := kubeClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-bind",
+			Name: "kubeware",
 		},
 	}, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 		return "", err
 	} else if err == nil {
-		fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kube-binding namespace.\n") // nolint: errcheck
+		fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kubewareing namespace.\n") // nolint: errcheck
 	}
 
 	// look for secret of the given identity
@@ -76,9 +76,9 @@ func (b *BindAPIServiceOptions) ensureKubeconfigSecretWithLogging(ctx context.Co
 
 	if b.remoteKubeconfigFile != "" {
 		if created {
-			fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+			fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", "kubeware", secret.Name, remoteHost, remoteNamespace)
 		} else {
-			fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+			fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", "kubeware", secret.Name, remoteHost, remoteNamespace)
 		}
 	}
 

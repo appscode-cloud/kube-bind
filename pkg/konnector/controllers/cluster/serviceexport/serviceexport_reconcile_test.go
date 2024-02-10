@@ -17,7 +17,6 @@ limitations under the License.
 package serviceexport
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -27,16 +26,16 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
 )
 
 func TestEnsureCRDConditionsCopied(t *testing.T) {
 	tests := []struct {
 		name     string
 		getCRD   func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
-		export   *kubebindv1alpha1.APIServiceExport
-		expected *kubebindv1alpha1.APIServiceExport
+		export   *kubewarev1alpha1.APIServiceExport
+		expected *kubewarev1alpha1.APIServiceExport
 		wantErr  bool
 	}{
 		{
@@ -64,7 +63,7 @@ func TestEnsureCRDConditionsCopied(t *testing.T) {
 				getCRD: tt.getCRD,
 			}
 			export := tt.export.DeepCopy()
-			if err := r.ensureCRDConditionsCopied(context.Background(), export); (err != nil) != tt.wantErr {
+			if err := r.ensureCRDConditionsCopied(export); (err != nil) != tt.wantErr {
 				t.Errorf("ensureCRDConditionsCopied() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err == nil {
 				for i := range export.Status.Conditions {
@@ -96,12 +95,12 @@ func newCRD(name string, conditions []apiextensionsv1.CustomResourceDefinitionCo
 	}
 }
 
-func newExport(name string, conditions []conditionsapi.Condition) *kubebindv1alpha1.APIServiceExport {
-	return &kubebindv1alpha1.APIServiceExport{
+func newExport(name string, conditions []conditionsapi.Condition) *kubewarev1alpha1.APIServiceExport {
+	return &kubewarev1alpha1.APIServiceExport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Status: kubebindv1alpha1.APIServiceExportStatus{
+		Status: kubewarev1alpha1.APIServiceExportStatus{
 			Conditions: conditions,
 		},
 	}

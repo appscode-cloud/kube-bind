@@ -33,16 +33,16 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 var (
-	kubebindSchema = runtime.NewScheme()
-	kubebindCodecs = serializer.NewCodecFactory(kubebindSchema)
+	kubewareSchema = runtime.NewScheme()
+	kubewareCodecs = serializer.NewCodecFactory(kubewareSchema)
 )
 
 func init() {
-	utilruntime.Must(kubebindv1alpha1.AddToScheme(kubebindSchema))
+	utilruntime.Must(kubewarev1alpha1.AddToScheme(kubewareSchema))
 }
 
 type LocalhostCallbackAuthenticator struct {
@@ -131,7 +131,7 @@ func (d *LocalhostCallbackAuthenticator) callback(w http.ResponseWriter, r *http
 		return
 	}
 
-	response, gvk, err := kubebindCodecs.UniversalDeserializer().Decode(decoded, nil, nil)
+	response, gvk, err := kubewareCodecs.UniversalDeserializer().Decode(decoded, nil, nil)
 	if err != nil {
 		logger.Error(err, "error decoding authResponse")
 		http.Error(w, "internal error", http.StatusInternalServerError)

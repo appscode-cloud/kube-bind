@@ -30,8 +30,8 @@ import (
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	bindapiserviceplugin "github.com/kube-bind/kube-bind/pkg/kubectl/bind-apiservice/plugin"
-	bindplugin "github.com/kube-bind/kube-bind/pkg/kubectl/bind/plugin"
+	bindapiserviceplugin "go.kubeware.dev/kubeware/pkg/kubectl/bind-apiservice/plugin"
+	bindplugin "go.kubeware.dev/kubeware/pkg/kubectl/bind/plugin"
 )
 
 func Bind(t *testing.T, iostreams genericclioptions.IOStreams, authURLCh chan<- string, invocations chan<- SubCommandInvocation, positionalArg string, flags ...string) {

@@ -17,7 +17,7 @@ limitations under the License.
 package indexers
 
 import (
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 )
 
 func IndexServiceNamespaceByNamespace(obj interface{}) ([]string, error) {
-	sn, ok := obj.(*kubebindv1alpha1.APIServiceNamespace)
+	sn, ok := obj.(*kubewarev1alpha1.APIServiceNamespace)
 	if !ok || sn.Status.Namespace == "" {
 		return nil, nil
 	}

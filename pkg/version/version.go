@@ -30,7 +30,7 @@ func BinaryVersion(s string) (string, error) {
 		return "", fmt.Errorf("failed to parse version %q", s)
 	}
 
-	prefix := "kube-bind"
+	prefix := "kubeware"
 	if !strings.HasPrefix(parts[1], prefix) {
 		return "", fmt.Errorf("failed to parse version %q", s)
 	}

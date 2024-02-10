@@ -14,7 +14,7 @@
 
 <html>
 <head>
-    <link rel="stylesheet" href="styles.css">
+    <link href="styles.css" rel="stylesheet">
     <title>login</title>
 </head>
 <body>
@@ -25,13 +25,14 @@
         <form action="#">
             <h1>Login to your account</h1>
             <div class="social-container">
-                <a href="http://localhost:8080/authorize" class="social"><i><img src="icon/github-icon.svg" width="40" alt="github"></i></a>
-                <a href="#" class="social"><i><img src="icon/google-icon.svg" width="40" alt="google"></i></a>
-                <a href="#" class="social"><i><img src="icon/microsoft-icon.svg" width="40" alt="microsoft"></i></a>
+                <a class="social" href="http://localhost:8080/authorize"><i><img alt="github" src="icon/github-icon.svg"
+                                                                                 width="40"></i></a>
+                <a class="social" href="#"><i><img alt="google" src="icon/google-icon.svg" width="40"></i></a>
+                <a class="social" href="#"><i><img alt="microsoft" src="icon/microsoft-icon.svg" width="40"></i></a>
             </div>
             <span>or use your email address</span>
-            <input type="email" placeholder="Email"/>
-            <input type="password" placeholder="Password"/>
+            <input placeholder="Email" type="email"/>
+            <input placeholder="Password" type="password"/>
             <button>Sign In</button>
         </form>
     </div>

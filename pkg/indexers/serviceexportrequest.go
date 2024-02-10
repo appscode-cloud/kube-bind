@@ -17,7 +17,7 @@ limitations under the License.
 package indexers
 
 import (
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 )
 
 func IndexServiceExportRequestByGroupResource(obj interface{}) ([]string, error) {
-	sbr, ok := obj.(*kubebindv1alpha1.APIServiceExportRequest)
+	sbr, ok := obj.(*kubewarev1alpha1.APIServiceExportRequest)
 	if !ok {
 		return nil, nil
 	}
@@ -38,7 +38,7 @@ func IndexServiceExportRequestByGroupResource(obj interface{}) ([]string, error)
 }
 
 func IndexServiceExportRequestByServiceExport(obj interface{}) ([]string, error) {
-	sbr, ok := obj.(*kubebindv1alpha1.APIServiceExportRequest)
+	sbr, ok := obj.(*kubewarev1alpha1.APIServiceExportRequest)
 	if !ok {
 		return nil, nil
 	}

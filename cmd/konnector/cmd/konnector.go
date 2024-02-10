@@ -28,9 +28,9 @@ import (
 	componentbaseversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/pkg/konnector"
-	konnectoroptions "github.com/kube-bind/kube-bind/pkg/konnector/options"
-	bindversion "github.com/kube-bind/kube-bind/pkg/version"
+	"go.kubeware.dev/kubeware/pkg/konnector"
+	konnectoroptions "go.kubeware.dev/kubeware/pkg/konnector/options"
+	bindversion "go.kubeware.dev/kubeware/pkg/version"
 )
 
 func New(ctx context.Context) *cobra.Command {

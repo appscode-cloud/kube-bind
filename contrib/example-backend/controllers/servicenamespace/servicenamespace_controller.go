@@ -39,22 +39,22 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	bindinformers "go.kubeware.dev/kubeware/pkg/client/informers/externalversions/kubeware/v1alpha1"
+	bindlisters "go.kubeware.dev/kubeware/pkg/client/listers/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/committer"
+	"go.kubeware.dev/kubeware/pkg/indexers"
 )
 
 const (
-	controllerName = "kube-bind-example-backend-servicenamespace"
+	controllerName = "kubeware-example-backend-servicenamespace"
 )
 
 // NewController returns a new controller for ServiceNamespaces.
 func NewController(
 	config *rest.Config,
-	scope kubebindv1alpha1.Scope,
+	scope kubewarev1alpha1.Scope,
 	serviceNamespaceInformer bindinformers.APIServiceNamespaceInformer,
 	clusterBindingInformer bindinformers.ClusterBindingInformer,
 	serviceExportInformer bindinformers.APIServiceExportInformer,
@@ -62,7 +62,9 @@ func NewController(
 	roleInformer rbacinformers.RoleInformer,
 	roleBindingInformer rbacinformers.RoleBindingInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("Controller", controllerName)
 
@@ -124,8 +126,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceNamespace, *kubebindv1alpha1.APIServiceNamespaceSpec, *kubebindv1alpha1.APIServiceNamespaceStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceNamespace] {
+		commit: committer.NewCommitter[*kubewarev1alpha1.APIServiceNamespace, *kubewarev1alpha1.APIServiceNamespaceSpec, *kubewarev1alpha1.APIServiceNamespaceStatus](
+			func(ns string) committer.Patcher[*kubewarev1alpha1.APIServiceNamespace] {
 				return bindClient.KubeBindV1alpha1().APIServiceNamespaces(ns)
 			},
 		),
@@ -135,7 +137,7 @@ func NewController(
 		indexers.ServiceNamespaceByNamespace: indexers.IndexServiceNamespaceByNamespace,
 	})
 
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueNamespace(logger, obj)
 		},
@@ -146,8 +148,11 @@ func NewController(
 			c.enqueueNamespace(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	serviceNamespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceNamespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceNamespace(logger, obj)
 		},
@@ -158,23 +163,29 @@ func NewController(
 			c.enqueueServiceNamespace(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueClusterBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceExport(logger, obj)
 		},
 		UpdateFunc: func(old, newObj interface{}) {
-			oldExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+			oldExport, ok := old.(*kubewarev1alpha1.APIServiceExport)
 			if !ok {
 				return
 			}
-			newExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+			newExport, ok := old.(*kubewarev1alpha1.APIServiceExport)
 			if !ok {
 				return
 			}
@@ -187,11 +198,14 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceNamespaceSpec, *kubebindv1alpha1.APIServiceNamespaceStatus]
+type Resource = committer.Resource[*kubewarev1alpha1.APIServiceNamespaceSpec, *kubewarev1alpha1.APIServiceNamespaceStatus]
 type CommitFunc = func(context.Context, *Resource, *Resource) error
 
 // Controller reconciles ServiceNamespaces by creating a Namespace for each, and deleting it if

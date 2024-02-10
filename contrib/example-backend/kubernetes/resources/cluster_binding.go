@@ -22,21 +22,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
 )
 
 func CreateClusterBinding(ctx context.Context, client bindclient.Interface, ns, secretName, providerPrettyName string) error {
 	logger := klog.FromContext(ctx)
 
-	clusterBinding := &kubebindv1alpha1.ClusterBinding{
+	clusterBinding := &kubewarev1alpha1.ClusterBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ClusterBindingName,
 			Namespace: ns,
 		},
-		Spec: kubebindv1alpha1.ClusterBindingSpec{
+		Spec: kubewarev1alpha1.ClusterBindingSpec{
 			ProviderPrettyName: providerPrettyName,
-			KubeconfigSecretRef: kubebindv1alpha1.LocalSecretKeyRef{
+			KubeconfigSecretRef: kubewarev1alpha1.LocalSecretKeyRef{
 				Name: secretName,
 				Key:  "kubeconfig",
 			},

@@ -26,14 +26,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/clusterbinding"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/serviceexport"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/serviceexportrequest"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/servicenamespace"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/deploy"
-	examplehttp "github.com/kube-bind/kube-bind/contrib/example-backend/http"
-	examplekube "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.kubeware.dev/kubeware/contrib/example-backend/controllers/clusterbinding"
+	"go.kubeware.dev/kubeware/contrib/example-backend/controllers/serviceexport"
+	"go.kubeware.dev/kubeware/contrib/example-backend/controllers/serviceexportrequest"
+	"go.kubeware.dev/kubeware/contrib/example-backend/controllers/servicenamespace"
+	"go.kubeware.dev/kubeware/contrib/example-backend/deploy"
+	examplehttp "go.kubeware.dev/kubeware/contrib/example-backend/http"
+	examplekube "go.kubeware.dev/kubeware/contrib/example-backend/kubernetes"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 type Server struct {
@@ -114,7 +114,7 @@ func NewServer(config *Config) (*Server, error) {
 		config.Options.TestingAutoSelect,
 		signingKey,
 		encryptionKey,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
+		kubewarev1alpha1.Scope(config.Options.ConsumerScope),
 		s.Kubernetes,
 		config.ApiextensionsInformers.Apiextensions().V1().CustomResourceDefinitions().Lister(),
 	)
@@ -126,7 +126,7 @@ func NewServer(config *Config) (*Server, error) {
 	// construct controllers
 	s.ClusterBinding, err = clusterbinding.NewController(
 		config.ClientConfig,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
+		kubewarev1alpha1.Scope(config.Options.ConsumerScope),
 		config.BindInformers.KubeBind().V1alpha1().ClusterBindings(),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExports(),
 		config.KubeInformers.Rbac().V1().ClusterRoles(),
@@ -139,7 +139,7 @@ func NewServer(config *Config) (*Server, error) {
 	}
 	s.ServiceNamespace, err = servicenamespace.NewController(
 		config.ClientConfig,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
+		kubewarev1alpha1.Scope(config.Options.ConsumerScope),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceNamespaces(),
 		config.BindInformers.KubeBind().V1alpha1().ClusterBindings(),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExports(),
@@ -160,8 +160,8 @@ func NewServer(config *Config) (*Server, error) {
 	}
 	s.ServiceExportRequest, err = serviceexportrequest.NewController(
 		config.ClientConfig,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
-		kubebindv1alpha1.Isolation(config.Options.ClusterScopedIsolation),
+		kubewarev1alpha1.Scope(config.Options.ConsumerScope),
+		kubewarev1alpha1.Isolation(config.Options.ClusterScopedIsolation),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExportRequests(),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExports(),
 		config.ApiextensionsInformers.Apiextensions().V1().CustomResourceDefinitions(),
@@ -202,7 +202,7 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 
-	if err := deploy.Bootstrap(ctx, s.Config.KubeClient.Discovery(), dynamicClient, sets.NewString()); err != nil {
+	if err := deploy.Bootstrap(ctx, s.Config.KubeClient.Discovery(), dynamicClient, sets.New[string]()); err != nil {
 		return err
 	}
 

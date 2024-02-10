@@ -1,45 +1,45 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kube-binder
+  name: kubeware
 rules:
-- apiGroups:
-  - "kube-bind.io"
-  resources:
-  - "apiserviceexportrequests"
-  verbs: ["create","delete","patch","update","get","list","watch"]
-- apiGroups:
-    - ""
-  resources:
-    - "namespaces"
-  verbs: ["get"]
-- apiGroups:
-    - ""
-  resources:
-    - "secrets"
-  verbs: ["get", "watch", "list"]
-- apiGroups:
-    - "kube-bind.io"
-  resources:
-    - "clusterbindings"
-  verbs: ["get", "watch", "list"]
-- apiGroups:
-    - "kube-bind.io"
-  resources:
-    - "clusterbindings/status"
-  verbs: ["get","patch","update"]
-- apiGroups:
-    - "kube-bind.io"
-  resources:
-    - "apiserviceexports"
-  verbs: ["get", "watch", "list"]
-- apiGroups:
-    - "kube-bind.io"
-  resources:
-    - "apiserviceexports/status"
-  verbs: ["get","patch","update"]
-- apiGroups:
-    - "kube-bind.io"
-  resources:
-    - "apiservicenamespaces"
-  verbs: ["create","delete","patch","update","get","list","watch"]
+  - apiGroups:
+      - "kubeware.dev"
+    resources:
+      - "apiserviceexportrequests"
+    verbs: [ "create","delete","patch","update","get","list","watch" ]
+  - apiGroups:
+      - ""
+    resources:
+      - "namespaces"
+    verbs: [ "get" ]
+  - apiGroups:
+      - ""
+    resources:
+      - "secrets"
+    verbs: [ "get", "watch", "list" ]
+  - apiGroups:
+      - "kubeware.dev"
+    resources:
+      - "clusterbindings"
+    verbs: [ "get", "watch", "list" ]
+  - apiGroups:
+      - "kubeware.dev"
+    resources:
+      - "clusterbindings/status"
+    verbs: [ "get","patch","update" ]
+  - apiGroups:
+      - "kubeware.dev"
+    resources:
+      - "apiserviceexports"
+    verbs: [ "get", "watch", "list" ]
+  - apiGroups:
+      - "kubeware.dev"
+    resources:
+      - "apiserviceexports/status"
+    verbs: [ "get","patch","update" ]
+  - apiGroups:
+      - "kubeware.dev"
+    resources:
+      - "apiservicenamespaces"
+    verbs: [ "create","delete","patch","update","get","list","watch" ]

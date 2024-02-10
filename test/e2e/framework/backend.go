@@ -35,10 +35,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	backend "github.com/kube-bind/kube-bind/contrib/example-backend"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/options"
-	"github.com/kube-bind/kube-bind/deploy/crd"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	backend "go.kubeware.dev/kubeware/contrib/example-backend"
+	"go.kubeware.dev/kubeware/contrib/example-backend/options"
+	"go.kubeware.dev/kubeware/deploy/crd"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 func StartBackend(t *testing.T, clientConfig *rest.Config, args ...string) (net.Addr, *backend.Server) {
@@ -49,7 +49,7 @@ func StartBackend(t *testing.T, clientConfig *rest.Config, args ...string) (net.
 
 	return StartBackendWithoutDefaultArgs(t, clientConfig, append([]string{
 		"--oidc-issuer-client-secret=ZXhhbXBsZS1hcHAtc2VjcmV0",
-		"--oidc-issuer-client-id=kube-bind",
+		"--oidc-issuer-client-id=kubeware",
 		"--oidc-issuer-url=http://127.0.0.1:5556/dex",
 		"--cookie-signing-key=" + base64.StdEncoding.EncodeToString(signingKey),
 	}, args...)...)
@@ -63,10 +63,10 @@ func StartBackendWithoutDefaultArgs(t *testing.T, clientConfig *rest.Config, arg
 	require.NoError(t, err)
 	err = crd.Create(ctx,
 		crdClient.ApiextensionsV1().CustomResourceDefinitions(),
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "clusterbindings"},
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiserviceexports"},
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiservicenamespaces"},
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiserviceexportrequests"},
+		metav1.GroupResource{Group: kubewarev1alpha1.GroupName, Resource: "clusterbindings"},
+		metav1.GroupResource{Group: kubewarev1alpha1.GroupName, Resource: "apiserviceexports"},
+		metav1.GroupResource{Group: kubewarev1alpha1.GroupName, Resource: "apiservicenamespaces"},
+		metav1.GroupResource{Group: kubewarev1alpha1.GroupName, Resource: "apiserviceexportrequests"},
 	)
 	require.NoError(t, err)
 
@@ -76,14 +76,14 @@ func StartBackendWithoutDefaultArgs(t *testing.T, clientConfig *rest.Config, arg
 	err = fs.Parse(args)
 	require.NoError(t, err)
 
-	// use a random port via an explicit listener. Then add a kube-bind-<port> client to dex
+	// use a random port via an explicit listener. Then add a kubeware-<port> client to dex
 	// with the callback URL set to the listener's address.
 	options.Serve.Listener, err = net.Listen("tcp", "localhost:0")
 	require.NoError(t, err)
 	addr := options.Serve.Listener.Addr()
 	_, port, err := net.SplitHostPort(addr.String())
 	require.NoError(t, err)
-	options.OIDC.IssuerClientID = "kube-bind-" + port
+	options.OIDC.IssuerClientID = "kubeware-" + port
 	createDexClient(t, addr)
 
 	completed, err := options.Complete()
@@ -116,11 +116,11 @@ func createDexClient(t *testing.T, addr net.Addr) {
 
 	_, err = client.CreateClient(ctx, &dexapi.CreateClientReq{
 		Client: &dexapi.Client{
-			Id:           "kube-bind-" + port,
+			Id:           "kubeware-" + port,
 			Secret:       "ZXhhbXBsZS1hcHAtc2VjcmV0",
 			RedirectUris: []string{fmt.Sprintf("http://%s/callback", addr)},
 			Public:       true,
-			Name:         "kube-bind on port " + port,
+			Name:         "kubeware on port " + port,
 		},
 	})
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func createDexClient(t *testing.T, addr net.Addr) {
 		defer cancel()
 		conn, err := grpc.Dial("127.0.0.1:5557", grpc.WithTransportCredentials(grpcinsecure.NewCredentials()))
 		require.NoError(t, err)
-		_, err = dexapi.NewDexClient(conn).DeleteClient(ctx, &dexapi.DeleteClientReq{Id: "kube-bind-" + port})
+		_, err = dexapi.NewDexClient(conn).DeleteClient(ctx, &dexapi.DeleteClientReq{Id: "kubeware-" + port})
 		require.NoError(t, err)
 	})
 }

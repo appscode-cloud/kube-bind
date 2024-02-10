@@ -29,12 +29,12 @@ func TestBinaryVersion(t *testing.T) {
 	}{
 		{
 			name: "happy case",
-			arg:  "v1.25.2+kube-bind-v0.0.15",
+			arg:  "v1.25.2+kubeware-v0.0.15",
 			want: "v0.0.15",
 		},
 		{
 			name: "dirty",
-			arg:  "v1.25.2+kube-bind-v0.0.15",
+			arg:  "v1.25.2+kubeware-v0.0.15",
 			want: "v0.0.15",
 		},
 		{

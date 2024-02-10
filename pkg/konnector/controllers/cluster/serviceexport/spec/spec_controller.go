@@ -22,6 +22,11 @@ import (
 	"fmt"
 	"time"
 
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
+	"go.kubeware.dev/kubeware/pkg/indexers"
+	clusterscoped "go.kubeware.dev/kubeware/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -36,19 +41,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
-
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	clusterscoped "github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	"k8s.io/utils/ptr"
 )
 
 const (
-	controllerName = "kube-bind-konnector-cluster-spec"
+	controllerName = "kubeware-konnector-cluster-spec"
 
-	applyManager = "kube-bind.io"
+	applyManager = "kubeware.dev"
 )
 
 // NewController returns a new controller reconciling downstream objects to upstream.
@@ -58,7 +57,9 @@ func NewController(
 	consumerDynamicInformer informers.GenericInformer,
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -110,10 +111,10 @@ func NewController(
 				}
 				return konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 			},
-			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error) {
+			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, name string) (*kubewarev1alpha1.APIServiceNamespace, error) {
 				return provider.DynamicServiceNamespaceInformer.Lister().APIServiceNamespaces(provider.Namespace).Get(name)
 			},
-			createServiceNamespace: func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error) {
+			createServiceNamespace: func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubewarev1alpha1.APIServiceNamespace) (*kubewarev1alpha1.APIServiceNamespace, error) {
 				return provider.BindClient.KubeBindV1alpha1().APIServiceNamespaces(provider.Namespace).Create(ctx, sn, metav1.CreateOptions{})
 			},
 			getProviderObject: func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error) {
@@ -165,7 +166,7 @@ func NewController(
 					return nil, err
 				}
 				patched, err := provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Patch(ctx,
-					obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: applyManager, Force: pointer.Bool(true)},
+					obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: applyManager, Force: ptr.To(true)},
 				)
 				if err != nil {
 					return nil, err
@@ -199,7 +200,7 @@ func NewController(
 		},
 	}
 
-	consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueConsumer(logger, obj)
 		},
@@ -210,6 +211,9 @@ func NewController(
 			c.enqueueConsumer(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	for _, provider := range providerInfos {
 		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -274,7 +278,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 			return
 		}
 		for _, obj := range sns {
-			sn := obj.(*kubebindv1alpha1.APIServiceNamespace)
+			sn := obj.(*kubewarev1alpha1.APIServiceNamespace)
 			if sn.Namespace == provider.Namespace {
 				key := fmt.Sprintf("%s/%s", sn.Name, name)
 				logger.V(2).Info("queueing Unstructured", "key", key)

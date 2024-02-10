@@ -77,7 +77,7 @@ KUBE_MAJOR_VERSION := 1
 KUBE_MINOR_VERSION := $(shell go mod edit -json | jq '.Require[] | select(.Path == "k8s.io/client-go") | .Version' --raw-output | sed "s/v[0-9]*\.\([0-9]*\).*/\1/")
 GIT_COMMIT := $(shell git rev-parse --short HEAD || echo 'local')
 GIT_DIRTY := $(shell git diff --quiet && echo 'clean' || echo 'dirty')
-GIT_VERSION := $(shell go mod edit -json | jq '.Require[] | select(.Path == "k8s.io/client-go") | .Version' --raw-output | sed 's/v0/v1/')+kube-bind-$(shell git describe --tags --match='v*' --abbrev=14 "$(GIT_COMMIT)^{commit}" 2>/dev/null || echo v0.0.0-$(GIT_COMMIT))
+GIT_VERSION := $(shell go mod edit -json | jq '.Require[] | select(.Path == "k8s.io/client-go") | .Version' --raw-output | sed 's/v0/v1/')+kubeware-$(shell git describe --tags --match='v*' --abbrev=14 "$(GIT_COMMIT)^{commit}" 2>/dev/null || echo v0.0.0-$(GIT_COMMIT))
 BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := \
 	-X k8s.io/client-go/pkg/version.gitCommit=${GIT_COMMIT} \
@@ -159,8 +159,8 @@ codegen: $(CONTROLLER_GEN) $(YAML_PATCH) ## Run the codegenerators
 .PHONY: verify-codegen
 verify-codegen:
 	if [[ -n "${GITHUB_WORKSPACE}" ]]; then \
-		mkdir -p $$(go env GOPATH)/src/github.com/kube-bind; \
-		ln -s ${GITHUB_WORKSPACE} $$(go env GOPATH)/src/github.com/kube-bind/kube-bind; \
+		mkdir -p $$(go env GOPATH)/src/github.com/kubeware; \
+		ln -s ${GITHUB_WORKSPACE} $$(go env GOPATH)/src/go.kubeware.dev/kubeware; \
 	fi
 
 	$(MAKE) codegen
@@ -176,7 +176,7 @@ $(OPENSHIFT_GOIMPORTS):
 
 .PHONY: imports
 imports: $(OPENSHIFT_GOIMPORTS)
-	$(OPENSHIFT_GOIMPORTS) -m github.com/kube-bind/kube-bind
+	$(OPENSHIFT_GOIMPORTS) -m go.kubeware.dev/kubeware
 
 $(TOOLS_DIR)/verify_boilerplate.py:
 	mkdir -p $(TOOLS_DIR)

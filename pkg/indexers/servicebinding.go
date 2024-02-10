@@ -17,7 +17,7 @@ limitations under the License.
 package indexers
 
 import (
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
 )
 
 const (
@@ -25,14 +25,14 @@ const (
 )
 
 func IndexServiceBindingByKubeconfigSecret(obj interface{}) ([]string, error) {
-	binding, ok := obj.(*kubebindv1alpha1.APIServiceBinding)
+	binding, ok := obj.(*kubewarev1alpha1.APIServiceBinding)
 	if !ok {
 		return nil, nil
 	}
 	return ByServiceBindingKubeconfigSecretKey(binding), nil
 }
 
-func ByServiceBindingKubeconfigSecretKey(binding *kubebindv1alpha1.APIServiceBinding) []string {
+func ByServiceBindingKubeconfigSecretKey(binding *kubewarev1alpha1.APIServiceBinding) []string {
 	refs := binding.Spec.KubeconfigSecretRefs
 	var secretRefs []string
 	for _, ref := range refs {

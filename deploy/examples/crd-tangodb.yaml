@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   name: tangodbs.tangodb.com
   labels:
-    kube-bind.io/exported: "true"
+    kubeware.dev/exported: "true"
 spec:
   group: tangodb.com
   names:
@@ -37,5 +37,5 @@ spec:
           required:
             - spec
       subresources:
-        status: {}
+        status: { }
 

@@ -27,18 +27,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1/helpers"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	"go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/util/conditions"
+	bindclient "go.kubeware.dev/kubeware/pkg/client/clientset/versioned"
 )
 
 const (
-	kubeconfigSecretNamespace = "kube-bind"
+	kubeconfigSecretNamespace = "kubeware"
 )
 
-func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *kubebindv1alpha1.APIServiceExportRequest, secretName string) ([]*kubebindv1alpha1.APIServiceBinding, error) {
+func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *kubewarev1alpha1.APIServiceExportRequest, secretName string) ([]*kubewarev1alpha1.APIServiceBinding, error) {
 	bindClient, err := bindclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -48,14 +48,14 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 		return nil, err
 	}
 
-	var bindings []*kubebindv1alpha1.APIServiceBinding
+	var bindings []*kubewarev1alpha1.APIServiceBinding
 	for _, resource := range request.Spec.Resources {
 		name := resource.Resource + "." + resource.Group
 		existing, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Get(ctx, name, metav1.GetOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return nil, err
 		} else if err == nil {
-			//if existing.Spec.KubeconfigSecretRef.Namespace != "kube-bind" || existing.Spec.KubeconfigSecretRef.Name != secretName {
+			//if existing.Spec.KubeconfigSecretRef.Namespace != "kubeware" || existing.Spec.KubeconfigSecretRef.Name != secretName {
 			//	return nil, fmt.Errorf("found existing APIServiceBinding %s not from this service provider", name)
 			//}
 
@@ -73,8 +73,8 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 
 			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
 
-			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, kubebindv1alpha1.ClusterSecretKeyRef{
-				LocalSecretKeyRef: kubebindv1alpha1.LocalSecretKeyRef{
+			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, kubewarev1alpha1.ClusterSecretKeyRef{
+				LocalSecretKeyRef: kubewarev1alpha1.LocalSecretKeyRef{
 					Name: secretName,
 					Key:  "kubeconfig",
 				},
@@ -94,7 +94,7 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 				return nil, err
 			} else if err == nil {
 				if !helpers.IsOwnedByBinding(existing.Name, existing.UID, crd.OwnerReferences) {
-					return nil, fmt.Errorf("CustomResourceDefinition %s exists, but is not owned by kube-bind", crd.Name)
+					return nil, fmt.Errorf("CustomResourceDefinition %s exists, but is not owned by kubeware", crd.Name)
 				}
 			}
 			continue
@@ -102,24 +102,24 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 
 		// create new APIServiceBinding.
 		first := true
-		if err := wait.PollInfinite(1*time.Second, func() (bool, error) {
+		if err := wait.PollUntilContextCancel(context.Background(), 1*time.Second, false, func(ctx context.Context) (bool, error) {
 			if !first {
 				first = false
 				fmt.Fprint(b.Options.IOStreams.ErrOut, ".") // nolint: errcheck
 			}
-			created, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Create(ctx, &kubebindv1alpha1.APIServiceBinding{
+			created, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Create(ctx, &kubewarev1alpha1.APIServiceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resource.Resource + "." + resource.Group,
-					Namespace: "kube-bind",
+					Namespace: "kubeware",
 				},
-				Spec: kubebindv1alpha1.APIServiceBindingSpec{
-					KubeconfigSecretRefs: []kubebindv1alpha1.ClusterSecretKeyRef{
+				Spec: kubewarev1alpha1.APIServiceBindingSpec{
+					KubeconfigSecretRefs: []kubewarev1alpha1.ClusterSecretKeyRef{
 						{
-							LocalSecretKeyRef: kubebindv1alpha1.LocalSecretKeyRef{
+							LocalSecretKeyRef: kubewarev1alpha1.LocalSecretKeyRef{
 								Name: secretName,
 								Key:  "kubeconfig",
 							},
-							Namespace: "kube-bind",
+							Namespace: "kubeware",
 						},
 					},
 				},

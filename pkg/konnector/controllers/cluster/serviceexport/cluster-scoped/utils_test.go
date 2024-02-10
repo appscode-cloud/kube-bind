@@ -34,9 +34,9 @@ func TestSwitchToUpstreamName(t *testing.T) {
 	}{
 		{
 			name:      "2up",
-			clusterNs: "kube-bind-zlp9m",
+			clusterNs: "kubeware-zlp9m",
 			down:      "example-foo",
-			expected:  "kube-bind-zlp9m-example-foo",
+			expected:  "kubeware-zlp9m-example-foo",
 		},
 	}
 	for _, tt := range tests {
@@ -60,8 +60,8 @@ func TestSwitchToDownstreamName(t *testing.T) {
 	}{
 		{
 			name:      "2down",
-			clusterNs: "kube-bind-zlp9m",
-			up:        "kube-bind-zlp9m-example-foo",
+			clusterNs: "kubeware-zlp9m",
+			up:        "kubeware-zlp9m-example-foo",
 			expected:  "example-foo",
 		},
 	}
@@ -89,17 +89,17 @@ func TestInjectClusterNs(t *testing.T) {
 		{
 			name:         "noExistingClusterNs",
 			obj:          unstructured.Unstructured{},
-			clusterNs:    "kube-bind-zlp9m",
+			clusterNs:    "kubeware-zlp9m",
 			clusterNsUID: "real-identity",
-			expected:     "kube-bind-zlp9m",
+			expected:     "kubeware-zlp9m",
 			wantErr:      false,
 		},
 		{
 			name:         "oneExistingClusterNs",
-			obj:          newObjectWithClusterNs("kube-bind-zlp9m"),
-			clusterNs:    "kube-bind-s85lc",
+			obj:          newObjectWithClusterNs("kubeware-zlp9m"),
+			clusterNs:    "kubeware-s85lc",
 			clusterNsUID: "real-indentity",
-			expected:     "kube-bind-zlp9m",
+			expected:     "kubeware-zlp9m",
 			wantErr:      true,
 		},
 	}
@@ -127,8 +127,8 @@ func TestExtractClusterNs(t *testing.T) {
 	}{
 		{
 			name:     "oneExistingClusterNs",
-			obj:      newObjectWithClusterNs("kube-bind-zlp9m"),
-			expected: "kube-bind-zlp9m",
+			obj:      newObjectWithClusterNs("kubeware-zlp9m"),
+			expected: "kubeware-zlp9m",
 			wantErr:  false,
 		},
 		{
@@ -161,8 +161,8 @@ func TestClearClusterNs(t *testing.T) {
 	}{
 		{
 			name:      "oneExistingClusterNs",
-			obj:       newObjectWithClusterNs("kube-bind-zlp9m"),
-			clusterNs: "kube-bind-zlp9m",
+			obj:       newObjectWithClusterNs("kubeware-zlp9m"),
+			clusterNs: "kubeware-zlp9m",
 			expected:  0,
 			wantErr:   false,
 		},

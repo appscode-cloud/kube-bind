@@ -18,6 +18,7 @@ package servicebinding
 
 import (
 	"context"
+	konnectormodels "go.kubeware.dev/kubeware/pkg/konnector/models"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -26,15 +27,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
+	kubewarev1alpha1 "go.kubeware.dev/kubeware/pkg/apis/kubeware/v1alpha1"
+	conditionsapi "go.kubeware.dev/kubeware/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
 )
 
 func TestEnsureCRDs(t *testing.T) {
 	tests := []struct {
 		name             string
 		bindingName      string
-		getServiceExport func(name string) (*kubebindv1alpha1.APIServiceExport, error)
+		getServiceExport func(provider *konnectormodels.ProviderInfo, name string) (*kubewarev1alpha1.APIServiceExport, error)
 		getCRD           func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
 		expectConditions conditionsapi.Conditions
 	}{
@@ -57,7 +58,7 @@ func TestEnsureCRDs(t *testing.T) {
 					Type: "Connected", Status: "False",
 					Severity: "Error",
 					Reason:   "ForeignCustomResourceDefinition",
-					Message:  "CustomResourceDefinition foo is not owned by kube-bind.io.",
+					Message:  "CustomResourceDefinition foo is not owned by kubeware.dev.",
 				},
 			},
 		},
@@ -103,26 +104,26 @@ func newCRD(name string) *apiextensionsv1.CustomResourceDefinition {
 	}
 }
 
-func newGetServiceExport(name string, crd *kubebindv1alpha1.APIServiceExport) func(name string) (*kubebindv1alpha1.APIServiceExport, error) {
-	return func(n string) (*kubebindv1alpha1.APIServiceExport, error) {
+func newGetServiceExport(name string, crd *kubewarev1alpha1.APIServiceExport) func(provider *konnectormodels.ProviderInfo, name string) (*kubewarev1alpha1.APIServiceExport, error) {
+	return func(provider *konnectormodels.ProviderInfo, n string) (*kubewarev1alpha1.APIServiceExport, error) {
 		if n == name {
 			return crd, nil
 		}
-		return nil, errors.NewNotFound(kubebindv1alpha1.SchemeGroupVersion.WithResource("apiserviceexports").GroupResource(), "not found")
+		return nil, errors.NewNotFound(kubewarev1alpha1.SchemeGroupVersion.WithResource("apiserviceexports").GroupResource(), "not found")
 	}
 }
 
-func newServiceExport(name string) *kubebindv1alpha1.APIServiceExport {
-	return &kubebindv1alpha1.APIServiceExport{
+func newServiceExport(name string) *kubewarev1alpha1.APIServiceExport {
+	return &kubewarev1alpha1.APIServiceExport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: kubebindv1alpha1.APIServiceExportSpec{},
+		Spec: kubewarev1alpha1.APIServiceExportSpec{},
 	}
 }
 
-func newBinding(name string) *kubebindv1alpha1.APIServiceBinding {
-	return &kubebindv1alpha1.APIServiceBinding{
+func newBinding(name string) *kubewarev1alpha1.APIServiceBinding {
+	return &kubewarev1alpha1.APIServiceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
