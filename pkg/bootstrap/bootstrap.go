@@ -149,8 +149,8 @@ func CreateResourceFromFS(ctx context.Context, client dynamic.Interface, mapper 
 	return apimachineryerrors.NewAggregate(errs)
 }
 
-const annotationCreateOnlyKey = "bootstrap.kube-bind.io/create-only"
-const annotationBattery = "bootstrap.kube-bind.io/battery"
+const annotationCreateOnlyKey = "bootstrap.kube-bind.appscode.com/create-only"
+const annotationBattery = "bootstrap.kube-bind.appscode.com/battery"
 
 func createResourceFromFS(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, raw []byte, batteriesIncluded sets.String) error {
 	type Input struct {

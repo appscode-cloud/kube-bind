@@ -23,12 +23,11 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 // FakeAPIServiceNamespaces implements APIServiceNamespaceInterface
@@ -37,9 +36,9 @@ type FakeAPIServiceNamespaces struct {
 	ns   string
 }
 
-var apiservicenamespacesResource = schema.GroupVersionResource{Group: "kube-bind.io", Version: "v1alpha1", Resource: "apiservicenamespaces"}
+var apiservicenamespacesResource = v1alpha1.SchemeGroupVersion.WithResource("apiservicenamespaces")
 
-var apiservicenamespacesKind = schema.GroupVersionKind{Group: "kube-bind.io", Version: "v1alpha1", Kind: "APIServiceNamespace"}
+var apiservicenamespacesKind = v1alpha1.SchemeGroupVersion.WithKind("APIServiceNamespace")
 
 // Get takes name of the aPIServiceNamespace, and returns the corresponding aPIServiceNamespace object, and an error if there is any.
 func (c *FakeAPIServiceNamespaces) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.APIServiceNamespace, err error) {

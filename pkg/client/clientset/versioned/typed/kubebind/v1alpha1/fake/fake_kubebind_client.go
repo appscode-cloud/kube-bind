@@ -22,7 +22,7 @@ import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1"
 )
 
 type FakeKubeBindV1alpha1 struct {

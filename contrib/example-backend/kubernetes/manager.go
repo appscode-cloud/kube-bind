@@ -30,11 +30,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	kuberesources "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
+	kuberesources "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
+	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
+	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
 )
 
 type Manager struct {

@@ -23,12 +23,11 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 // FakeAPIServiceExports implements APIServiceExportInterface
@@ -37,9 +36,9 @@ type FakeAPIServiceExports struct {
 	ns   string
 }
 
-var apiserviceexportsResource = schema.GroupVersionResource{Group: "kube-bind.io", Version: "v1alpha1", Resource: "apiserviceexports"}
+var apiserviceexportsResource = v1alpha1.SchemeGroupVersion.WithResource("apiserviceexports")
 
-var apiserviceexportsKind = schema.GroupVersionKind{Group: "kube-bind.io", Version: "v1alpha1", Kind: "APIServiceExport"}
+var apiserviceexportsKind = v1alpha1.SchemeGroupVersion.WithKind("APIServiceExport")
 
 // Get takes name of the aPIServiceExport, and returns the corresponding aPIServiceExport object, and an error if there is any.
 func (c *FakeAPIServiceExports) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.APIServiceExport, err error) {

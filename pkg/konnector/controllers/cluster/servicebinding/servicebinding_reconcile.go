@@ -28,9 +28,9 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/utils/pointer"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	kubebindhelpers "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kubebindhelpers "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 type reconciler struct {
@@ -171,7 +171,7 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 				kubebindv1alpha1.APIServiceBindingConditionConnected,
 				"ForeignCustomResourceDefinition",
 				conditionsapi.ConditionSeverityError,
-				"CustomResourceDefinition %s is not owned by kube-bind.io.",
+				"CustomResourceDefinition %s is not owned by kube-bind.appscode.com.",
 				binding.Name,
 			)
 			return nil

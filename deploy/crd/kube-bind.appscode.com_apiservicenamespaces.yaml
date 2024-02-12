@@ -5,9 +5,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
-  name: apiservicenamespaces.kube-bind.io
+  name: apiservicenamespaces.kube-bind.appscode.com
 spec:
-  group: kube-bind.io
+  group: kube-bind.appscode.com
   names:
     categories:
     - kube-bindings

@@ -26,8 +26,8 @@ import (
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
-	apiservicecmd "github.com/kube-bind/kube-bind/pkg/kubectl/bind-apiservice/cmd"
-	bindcmd "github.com/kube-bind/kube-bind/pkg/kubectl/bind/cmd"
+	apiservicecmd "go.bytebuilders.dev/kube-bind/pkg/kubectl/bind-apiservice/cmd"
+	bindcmd "go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/cmd"
 )
 
 func init() {

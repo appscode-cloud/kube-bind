@@ -24,7 +24,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -53,7 +53,7 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=kube-bind.io, Version=v1alpha1
+	// Group=kube-bind.appscode.com, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("apiservicebindings"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.KubeBind().V1alpha1().APIServiceBindings().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("apiserviceexports"):

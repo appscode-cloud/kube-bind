@@ -31,9 +31,9 @@ import (
 	componentbaseversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
-	"github.com/kube-bind/kube-bind/pkg/version"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+	"go.bytebuilders.dev/kube-bind/pkg/version"
 )
 
 type reconciler struct {

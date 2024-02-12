@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/kube-bind/kube-bind/pkg/bootstrap"
+	"go.bytebuilders.dev/kube-bind/pkg/bootstrap"
 )
 
 //go:embed *.yaml

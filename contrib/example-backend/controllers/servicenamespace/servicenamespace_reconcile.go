@@ -26,8 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kuberesources "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kuberesources "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 type reconciler struct {

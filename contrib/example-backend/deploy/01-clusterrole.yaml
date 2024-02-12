@@ -4,7 +4,7 @@ metadata:
   name: kube-binder
 rules:
 - apiGroups:
-  - "kube-bind.io"
+  - "kube-bind.appscode.com"
   resources:
   - "apiserviceexportrequests"
   verbs: ["create","delete","patch","update","get","list","watch"]
@@ -19,27 +19,27 @@ rules:
     - "secrets"
   verbs: ["get", "watch", "list"]
 - apiGroups:
-    - "kube-bind.io"
+    - "kube-bind.appscode.com"
   resources:
     - "clusterbindings"
   verbs: ["get", "watch", "list"]
 - apiGroups:
-    - "kube-bind.io"
+    - "kube-bind.appscode.com"
   resources:
     - "clusterbindings/status"
   verbs: ["get","patch","update"]
 - apiGroups:
-    - "kube-bind.io"
+    - "kube-bind.appscode.com"
   resources:
     - "apiserviceexports"
   verbs: ["get", "watch", "list"]
 - apiGroups:
-    - "kube-bind.io"
+    - "kube-bind.appscode.com"
   resources:
     - "apiserviceexports/status"
   verbs: ["get","patch","update"]
 - apiGroups:
-    - "kube-bind.io"
+    - "kube-bind.appscode.com"
   resources:
     - "apiservicenamespaces"
   verbs: ["create","delete","patch","update","get","list","watch"]

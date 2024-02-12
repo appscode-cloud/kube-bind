@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/spec"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/status"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/spec"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/status"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 type syncInfo struct {

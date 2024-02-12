@@ -1,4 +1,4 @@
-apiVersion: kube-bind.io/v1alpha1
+apiVersion: kube-bind.appscode.com/v1alpha1
 kind: APIServiceNamespace
 metadata:
   name: example

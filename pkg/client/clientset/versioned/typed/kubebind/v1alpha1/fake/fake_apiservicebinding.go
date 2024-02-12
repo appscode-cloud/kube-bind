@@ -23,12 +23,11 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 // FakeAPIServiceBindings implements APIServiceBindingInterface
@@ -36,9 +35,9 @@ type FakeAPIServiceBindings struct {
 	Fake *FakeKubeBindV1alpha1
 }
 
-var apiservicebindingsResource = schema.GroupVersionResource{Group: "kube-bind.io", Version: "v1alpha1", Resource: "apiservicebindings"}
+var apiservicebindingsResource = v1alpha1.SchemeGroupVersion.WithResource("apiservicebindings")
 
-var apiservicebindingsKind = schema.GroupVersionKind{Group: "kube-bind.io", Version: "v1alpha1", Kind: "APIServiceBinding"}
+var apiservicebindingsKind = v1alpha1.SchemeGroupVersion.WithKind("APIServiceBinding")
 
 // Get takes name of the aPIServiceBinding, and returns the corresponding aPIServiceBinding object, and an error if there is any.
 func (c *FakeAPIServiceBindings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.APIServiceBinding, err error) {

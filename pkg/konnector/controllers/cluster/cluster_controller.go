@@ -35,17 +35,17 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/clusterbinding"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/namespacedeletion"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/servicebinding"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions"
+	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/clusterbinding"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/namespacedeletion"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/servicebinding"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 const (

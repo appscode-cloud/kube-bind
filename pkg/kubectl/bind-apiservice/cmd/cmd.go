@@ -27,7 +27,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	logsv1 "k8s.io/component-base/logs/api/v1"
 
-	"github.com/kube-bind/kube-bind/pkg/kubectl/bind-apiservice/plugin"
+	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind-apiservice/plugin"
 )
 
 var (

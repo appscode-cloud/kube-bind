@@ -35,7 +35,7 @@ type BindingProvider struct {
 	// +kubebuilder:validation:MinLength=1
 	ProviderPrettyName string `json:"providerPrettyName"`
 
-	// version is the kube-bind.io version of the provider. The kubectl bind will check
+	// version is the kube-bind.appscode.com version of the provider. The kubectl bind will check
 	// this for compatibility.
 	//
 	// +required

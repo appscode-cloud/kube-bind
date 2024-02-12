@@ -27,10 +27,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	"github.com/kube-bind/kube-bind/deploy/crd"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/konnector"
-	"github.com/kube-bind/kube-bind/pkg/konnector/options"
+	"go.bytebuilders.dev/kube-bind/deploy/crd"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/options"
 )
 
 func StartKonnector(t *testing.T, clientConfig *rest.Config, args ...string) *konnector.Server {
