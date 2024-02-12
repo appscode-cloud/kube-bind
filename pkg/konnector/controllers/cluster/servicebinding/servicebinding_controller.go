@@ -134,7 +134,7 @@ func NewController(
 			indexers.ServiceExportByCustomResourceDefinition: indexers.IndexServiceExportByCustomResourceDefinition,
 		})
 
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceExport(logger, obj, provider)
 			},
@@ -145,6 +145,9 @@ func NewController(
 				c.enqueueServiceExport(logger, obj, provider)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -178,7 +181,7 @@ func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) 
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueServiceExport(logger klog.Logger, obj interface{}, provider *konnectormodels.ProviderInfo) {
+func (c *controller) enqueueServiceExport(logger klog.Logger, _ interface{}, provider *konnectormodels.ProviderInfo) {
 	bindings, err := c.serviceBindingInformer.Informer().GetIndexer().ByIndex(indexers.ByServiceBindingKubeconfigSecret, provider.ConsumerSecretRefKey)
 	if err != nil {
 		runtime.HandleError(err)
@@ -214,9 +217,7 @@ func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
 			runtime.HandleError(err)
 			return
 		}
-		for _, e := range exps {
-			exports = append(exports, e)
-		}
+		exports = append(exports, exps...)
 	}
 	for _, obj := range exports {
 		export := obj.(*kubebindv1alpha1.APIServiceExport)

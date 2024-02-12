@@ -28,13 +28,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 func TestEnsureCRDs(t *testing.T) {
 	tests := []struct {
 		name             string
 		bindingName      string
-		getServiceExport func(name string) (*kubebindv1alpha1.APIServiceExport, error)
+		getServiceExport func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceExport, error)
 		getCRD           func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
 		expectConditions conditionsapi.Conditions
 	}{
@@ -103,8 +104,8 @@ func newCRD(name string) *apiextensionsv1.CustomResourceDefinition {
 	}
 }
 
-func newGetServiceExport(name string, crd *kubebindv1alpha1.APIServiceExport) func(name string) (*kubebindv1alpha1.APIServiceExport, error) {
-	return func(n string) (*kubebindv1alpha1.APIServiceExport, error) {
+func newGetServiceExport(name string, crd *kubebindv1alpha1.APIServiceExport) func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceExport, error) {
+	return func(provider *konnectormodels.ProviderInfo, n string) (*kubebindv1alpha1.APIServiceExport, error) {
 		if n == name {
 			return crd, nil
 		}

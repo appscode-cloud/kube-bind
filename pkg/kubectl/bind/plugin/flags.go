@@ -22,7 +22,7 @@ import (
 
 var (
 	// passOnFlags are the flags we pass to downstream commands like kubectl-bind-apiservice.
-	PassOnFlags = sets.NewString(
+	PassOnFlags = sets.New[string](
 		"allow-missing-template-keys",
 		"kubeconfig",
 		"log-flush-frequency",
@@ -38,7 +38,7 @@ var (
 	)
 
 	// passOnEnvVars are the flags we DO NOT pass to downstream commands like kubectl-bind-apiservice.
-	LocalFlags = sets.NewString(
+	LocalFlags = sets.New[string](
 		"d",
 		"dry-run",
 	)

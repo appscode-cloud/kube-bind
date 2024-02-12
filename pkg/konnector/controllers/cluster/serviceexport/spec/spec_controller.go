@@ -36,7 +36,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
@@ -165,7 +165,7 @@ func NewController(
 					return nil, err
 				}
 				patched, err := provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Patch(ctx,
-					obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: applyManager, Force: pointer.Bool(true)},
+					obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: applyManager, Force: ptr.To(true)},
 				)
 				if err != nil {
 					return nil, err
@@ -199,7 +199,7 @@ func NewController(
 		},
 	}
 
-	consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueConsumer(logger, obj)
 		},
@@ -210,6 +210,9 @@ func NewController(
 			c.enqueueConsumer(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	for _, provider := range providerInfos {
 		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{

@@ -52,7 +52,9 @@ func NewController(
 	serviceExportInformer bindinformers.APIServiceExportInformer,
 	crdInformer apiextensionsinformers.CustomResourceDefinitionInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -103,7 +105,7 @@ func NewController(
 		indexers.ServiceExportByCustomResourceDefinition: indexers.IndexServiceExportByCustomResourceDefinition,
 	})
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceExport(logger, obj)
 		},
@@ -114,8 +116,11 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	crdInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = crdInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueCRD(logger, obj)
 		},
@@ -126,6 +131,9 @@ func NewController(
 			c.enqueueCRD(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }

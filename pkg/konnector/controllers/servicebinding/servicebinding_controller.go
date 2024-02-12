@@ -89,7 +89,7 @@ func NewController(
 		indexers.ByServiceBindingKubeconfigSecret: indexers.IndexServiceBindingByKubeconfigSecret,
 	})
 
-	serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceBinding(logger, obj)
 		},
@@ -100,8 +100,11 @@ func NewController(
 			c.enqueueServiceBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueConsumerSecret(logger, obj)
 		},
@@ -112,6 +115,9 @@ func NewController(
 			c.enqueueConsumerSecret(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }

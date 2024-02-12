@@ -133,7 +133,7 @@ func New(
 		indexers.CRDByServiceBinding: indexers.IndexCRDByServiceBinding,
 	})
 
-	serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceBinding(logger, obj)
 		},
@@ -144,8 +144,11 @@ func New(
 			c.enqueueServiceBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = secretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueSecret(logger, obj)
 		},
@@ -156,6 +159,10 @@ func New(
 			c.enqueueSecret(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
+
 	return c, nil
 }
 

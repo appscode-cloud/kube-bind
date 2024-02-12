@@ -35,7 +35,6 @@ import (
 
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
 	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
@@ -92,7 +91,7 @@ func NewController(
 	}
 
 	for _, provider := range providerInfos {
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceNamespace(logger, obj)
 			},
@@ -103,6 +102,9 @@ func NewController(
 				c.enqueueServiceNamespace(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -114,9 +116,6 @@ type controller struct {
 	queue workqueue.RateLimitingInterface
 
 	namespaceInformer dynamic.Informer[corelisters.NamespaceLister]
-
-	serviceNamespaceLister  bindlisters.APIServiceNamespaceLister
-	serviceNamespaceIndexer cache.Indexer
 
 	providerInfos []*konnectormodels.ProviderInfo
 

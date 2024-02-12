@@ -46,7 +46,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	provider, err := r.getProviderInfo(obj)
 	if err != nil {
-		klog.Errorf("failed to get provider information. ", err.Error())
+		klog.ErrorS(err, "failed to get provider information")
 		return err
 	}
 

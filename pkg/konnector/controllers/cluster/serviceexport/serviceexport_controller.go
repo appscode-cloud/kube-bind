@@ -112,7 +112,7 @@ func NewController(
 			indexers.ServiceNamespaceByNamespace: indexers.IndexServiceNamespaceByNamespace,
 		})
 
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceExport(logger, obj)
 			},
@@ -123,6 +123,9 @@ func NewController(
 				c.enqueueServiceExport(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil

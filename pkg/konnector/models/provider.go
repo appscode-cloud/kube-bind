@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -36,7 +35,7 @@ func GetProviderInfoWithClusterID(providerInfos []*ProviderInfo, clusterID strin
 			return info, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("no provider information found with cluster id: %s", clusterID))
+	return nil, fmt.Errorf("no provider information found with cluster id: %s", clusterID)
 }
 
 func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, providerNamespace string) (*ProviderInfo, error) {
@@ -45,7 +44,7 @@ func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, provide
 			return info, nil
 		}
 	}
-	return nil, errors.New(fmt.Sprintf("no provider information found with namespace: %s", providerNamespace))
+	return nil, fmt.Errorf("no provider information found with namespace: %s", providerNamespace)
 }
 
 func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
@@ -55,10 +54,7 @@ func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
 	}
 	annos := unstr.GetAnnotations()
 
-	if annos[AnnotationProviderClusterID] == provider.ClusterID {
-		return true
-	}
-	return false
+	return annos[AnnotationProviderClusterID] == provider.ClusterID
 }
 
 func GetProviderFromObjectInterface(providerInfos []*ProviderInfo, obj interface{}) (*ProviderInfo, error) {

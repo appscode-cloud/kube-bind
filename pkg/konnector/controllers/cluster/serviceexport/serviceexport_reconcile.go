@@ -74,7 +74,7 @@ func (r *reconciler) reconcile(ctx context.Context, sync *syncInfo, export *kube
 		if err := r.ensureServiceBindingConditionCopied(ctx, export); err != nil {
 			errs = append(errs, err)
 		}
-		if err := r.ensureCRDConditionsCopied(ctx, export); err != nil {
+		if err := r.ensureCRDConditionsCopied(export); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -318,7 +318,7 @@ func (r *reconciler) ensureServiceBindingConditionCopied(ctx context.Context, ex
 	return nil
 }
 
-func (r *reconciler) ensureCRDConditionsCopied(ctx context.Context, export *kubebindv1alpha1.APIServiceExport) error {
+func (r *reconciler) ensureCRDConditionsCopied(export *kubebindv1alpha1.APIServiceExport) error {
 	crd, err := r.getCRD(export.Name)
 	if err != nil && !errors.IsNotFound(err) {
 		return err

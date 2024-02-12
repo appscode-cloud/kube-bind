@@ -31,7 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	kuberesources "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
@@ -64,9 +64,7 @@ func (r *reconciler) reconcile(ctx context.Context, clusterBinding *kubebindv1al
 	if err := r.ensureKubeSystemNSAccess(ctx, clusterBinding); err != nil {
 		errs = append(errs, err)
 	}
-	if err := r.ensureClusterBindingConditions(ctx, clusterBinding); err != nil {
-		errs = append(errs, err)
-	}
+	r.ensureClusterBindingConditions(clusterBinding)
 	if err := r.ensureRBACRoleBinding(ctx, clusterBinding); err != nil {
 		errs = append(errs, err)
 	}
@@ -82,7 +80,7 @@ func (r *reconciler) reconcile(ctx context.Context, clusterBinding *kubebindv1al
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureClusterBindingConditions(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
+func (r *reconciler) ensureClusterBindingConditions(clusterBinding *kubebindv1alpha1.ClusterBinding) {
 	if clusterBinding.Status.LastHeartbeatTime.IsZero() {
 		conditions.MarkFalse(clusterBinding,
 			kubebindv1alpha1.ClusterBindingConditionHealthy,
@@ -118,8 +116,6 @@ func (r *reconciler) ensureClusterBindingConditions(ctx context.Context, cluster
 			kubebindv1alpha1.ClusterBindingConditionHealthy,
 		)
 	}
-
-	return nil
 }
 
 func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBinding *kubebindv1alpha1.ClusterBinding) error {
@@ -147,7 +143,7 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 		},
 	}
 	if clusterRole == nil {
-		clusterRole, err = r.createClusterRole(ctx, expectedRole)
+		_, err = r.createClusterRole(ctx, expectedRole)
 		if err != nil {
 			return err
 		}
@@ -164,7 +160,7 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 					APIVersion: "v1",
 					Kind:       "Namespace",
 					Name:       clusterBinding.Namespace,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 					UID:        ns.UID,
 				},
 			},
@@ -188,7 +184,7 @@ func (r *reconciler) ensureKubeSystemNSAccess(ctx context.Context, clusterBindin
 		return err
 	}
 	if rb == nil {
-		rb, err = r.createClusterRoleBinding(ctx, expectedRB)
+		_, err = r.createClusterRoleBinding(ctx, expectedRB)
 		if err != nil {
 			return err
 		}
@@ -222,7 +218,7 @@ func (r *reconciler) ensureRBACClusterRole(ctx context.Context, clusterBinding *
 					APIVersion: "v1",
 					Kind:       "Namespace",
 					Name:       clusterBinding.Namespace,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 					UID:        ns.UID,
 				},
 			},
@@ -277,7 +273,7 @@ func (r *reconciler) ensureRBACClusterRoleBinding(ctx context.Context, clusterBi
 					APIVersion: "v1",
 					Kind:       "Namespace",
 					Name:       clusterBinding.Namespace,
-					Controller: pointer.Bool(true),
+					Controller: ptr.To(true),
 					UID:        ns.UID,
 				},
 			},

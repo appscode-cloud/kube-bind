@@ -71,7 +71,7 @@ func NewDynamicInformer[L any](informer StaticInformer[L]) Informer[L] {
 		},
 	}
 
-	informer.Informer().AddEventHandler(cache.ResourceEventHandlerDetailedFuncs{
+	_, err := informer.Informer().AddEventHandler(cache.ResourceEventHandlerDetailedFuncs{
 		AddFunc: func(obj interface{}, isInInitialList bool) {
 			di.sharedIndexInformer.lock.RLock()
 			defer di.sharedIndexInformer.lock.RUnlock()
@@ -94,6 +94,9 @@ func NewDynamicInformer[L any](informer StaticInformer[L]) Informer[L] {
 			}
 		},
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	return di
 }

@@ -61,7 +61,9 @@ func NewController(
 	roleBindingInformer rbacinformers.RoleBindingInformer,
 	namespaceInformer kubeinformers.NamespaceInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -142,7 +144,7 @@ func NewController(
 		),
 	}
 
-	clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueClusterBinding(logger, obj)
 		},
@@ -153,8 +155,11 @@ func NewController(
 			c.enqueueClusterBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceExport(logger, obj)
 		},
@@ -165,6 +170,9 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }

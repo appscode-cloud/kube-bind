@@ -121,8 +121,8 @@ func (b *BindAPIServiceOptions) Validate() error {
 		}
 	}
 
-	if allowed := sets.NewString(b.Print.AllowedFormats()...); *b.Print.OutputFormat != "" && !allowed.Has(*b.Print.OutputFormat) {
-		return fmt.Errorf("invalid output format %q (allowed: %s)", *b.Print.OutputFormat, strings.Join(allowed.List(), ", "))
+	if allowed := sets.New[string](b.Print.AllowedFormats()...); *b.Print.OutputFormat != "" && !allowed.Has(*b.Print.OutputFormat) {
+		return fmt.Errorf("invalid output format %q (allowed: %s)", *b.Print.OutputFormat, strings.Join(sets.List(allowed), ", "))
 	}
 
 	if (b.remoteKubeconfigNamespace == "" && b.remoteKubeconfigName != "") ||

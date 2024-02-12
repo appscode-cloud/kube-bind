@@ -62,7 +62,9 @@ func NewController(
 	roleInformer rbacinformers.RoleInformer,
 	roleBindingInformer rbacinformers.RoleBindingInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("Controller", controllerName)
 
@@ -135,7 +137,7 @@ func NewController(
 		indexers.ServiceNamespaceByNamespace: indexers.IndexServiceNamespaceByNamespace,
 	})
 
-	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueNamespace(logger, obj)
 		},
@@ -146,8 +148,11 @@ func NewController(
 			c.enqueueNamespace(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	serviceNamespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceNamespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceNamespace(logger, obj)
 		},
@@ -158,14 +163,20 @@ func NewController(
 			c.enqueueServiceNamespace(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueClusterBinding(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueServiceExport(logger, obj)
 		},
@@ -187,6 +198,9 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }

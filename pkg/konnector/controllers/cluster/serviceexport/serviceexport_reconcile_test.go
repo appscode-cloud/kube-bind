@@ -17,7 +17,6 @@ limitations under the License.
 package serviceexport
 
 import (
-	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -64,7 +63,7 @@ func TestEnsureCRDConditionsCopied(t *testing.T) {
 				getCRD: tt.getCRD,
 			}
 			export := tt.export.DeepCopy()
-			if err := r.ensureCRDConditionsCopied(context.Background(), export); (err != nil) != tt.wantErr {
+			if err := r.ensureCRDConditionsCopied(export); (err != nil) != tt.wantErr {
 				t.Errorf("ensureCRDConditionsCopied() error = %v, wantErr %v", err, tt.wantErr)
 			} else if err == nil {
 				for i := range export.Status.Conditions {

@@ -146,7 +146,7 @@ func NewController(
 	}
 
 	for _, provider := range providerInfos {
-		provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueClusterBinding(logger, obj)
 			},
@@ -157,8 +157,11 @@ func NewController(
 				c.enqueueClusterBinding(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		provider.KubeInformer.Core().V1().Secrets().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.KubeInformer.Core().V1().Secrets().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueProviderSecret(logger, obj, c.providerInfos)
 			},
@@ -169,8 +172,11 @@ func NewController(
 				c.enqueueProviderSecret(logger, obj, c.providerInfos)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueServiceExport(logger, obj)
 			},
@@ -192,8 +198,11 @@ func NewController(
 				c.enqueueServiceExport(logger, obj)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 
-		consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		_, err = consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
@@ -204,6 +213,9 @@ func NewController(
 				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return c, nil
@@ -218,8 +230,6 @@ type controller struct {
 
 	consumerBindClient bindclient.Interface
 	consumerKubeClient kubernetesclient.Interface
-
-	clusterBindingIndexer cache.Indexer
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 
@@ -328,9 +338,9 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 	}
 
 	// start the heartbeat
-	// nolint:errcheck
 	for _, provider := range c.providerInfos {
-		wait.PollInfiniteWithContext(ctx, c.heartbeatInterval/2, func(ctx context.Context) (bool, error) {
+		// nolint:errcheck
+		wait.PollUntilContextCancel(ctx, c.heartbeatInterval/2, false, func(ctx context.Context) (bool, error) {
 			c.queue.Add(provider.Namespace + "/cluster")
 			return false, nil
 		})

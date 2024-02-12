@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 	kubebindhelpers "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
@@ -138,7 +138,7 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 			Kind:       "APIServiceBinding",
 			Name:       binding.Name,
 			UID:        binding.UID,
-			Controller: pointer.Bool(true),
+			Controller: ptr.To(true),
 		}
 		crd.OwnerReferences = append(crd.OwnerReferences, newReference)
 

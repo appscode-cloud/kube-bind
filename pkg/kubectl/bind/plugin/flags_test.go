@@ -33,7 +33,7 @@ func TestFlags(t *testing.T) {
 	opts := NewBindOptions(genericclioptions.IOStreams{})
 	opts.AddCmdFlags(&cmd)
 
-	all := sets.NewString()
+	all := sets.New[string]()
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		all.Insert(flag.Name)
 		if flag.Shorthand != "" {
@@ -45,8 +45,8 @@ func TestFlags(t *testing.T) {
 	})
 
 	missing := all.Difference(PassOnFlags).Difference(LocalFlags)
-	for _, flag := range missing.List() {
+	for _, flag := range sets.List(missing) {
 		fmt.Printf("%q,\n", flag)
 	}
-	require.Empty(t, missing.List())
+	require.Empty(t, sets.List(missing))
 }

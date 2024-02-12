@@ -144,7 +144,7 @@ func NewController(
 		},
 	}
 
-	consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			c.enqueueConsumer(logger, obj)
 		},
@@ -155,6 +155,9 @@ func NewController(
 			c.enqueueConsumer(logger, obj)
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	for _, provider := range c.providerInfos {
 		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -179,7 +182,7 @@ type controller struct {
 
 	gvr schema.GroupVersionResource
 
-	consumerClient, providerClient dynamicclient.Interface
+	consumerClient dynamicclient.Interface
 
 	consumerDynamicLister  dynamiclister.Lister
 	consumerDynamicIndexer cache.Indexer
