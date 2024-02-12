@@ -21,7 +21,9 @@ import (
 	"sync"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +36,6 @@ import (
 	"k8s.io/klog/v2"
 
 	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	conditionsapi "github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/apis/conditions/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/third_party/conditions/util/conditions"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/spec"
 	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/status"
@@ -341,7 +341,7 @@ func (r *reconciler) ensureCRDConditionsCopied(ctx context.Context, export *kube
 		}
 		copied := conditionsapi.Condition{
 			Type:               conditionsapi.ConditionType(c.Type),
-			Status:             corev1.ConditionStatus(c.Status),
+			Status:             metav1.ConditionStatus(c.Status),
 			Severity:           severity, // CRD conditions have no severity
 			LastTransitionTime: c.LastTransitionTime,
 			Reason:             c.Reason,

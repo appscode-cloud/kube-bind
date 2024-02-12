@@ -3,16 +3,18 @@ package models
 import (
 	"errors"
 	"fmt"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	dynamicclient "k8s.io/client-go/dynamic"
 	kubernetesinformers "k8s.io/client-go/informers"
 	kubernetesclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
+	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
+	bindinformers "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions"
+	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
+	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
+	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
 )
 
 type ProviderInfo struct {
