@@ -19,14 +19,17 @@ set -o nounset
 set -o pipefail
 set -o xtrace
 
+chmod +x ./vendor/k8s.io/code-generator/generate-groups.sh
+chmod +x ./vendor/k8s.io/code-generator/generate-internal-groups.sh
+
 export GOPATH=$(go env GOPATH)
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; go list -f '{{.Dir}}' -m k8s.io/code-generator)}
 
-bash "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
-  github.com/kube-bind/kube-bind/pkg/client github.com/kube-bind/kube-bind/pkg/apis \
+bash ./vendor/k8s.io/code-generator/generate-groups.sh "deepcopy,client,informer,lister" \
+  go.bytebuilders.dev/kube-bind/pkg/client go.bytebuilders.dev/kube-bind/pkg/apis \
   "kubebind:v1alpha1" \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate/boilerplate.generatego.txt \
   --output-base "${SCRIPT_ROOT}" \
-  --trim-path-prefix github.com/kube-bind/kube-bind
+  --trim-path-prefix go.bytebuilders.dev/kube-bind

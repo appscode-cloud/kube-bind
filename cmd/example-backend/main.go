@@ -28,8 +28,8 @@ import (
 	"k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	backend "github.com/kube-bind/kube-bind/contrib/example-backend"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/options"
+	backend "go.bytebuilders.dev/kube-bind/contrib/example-backend"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/options"
 )
 
 func main() {

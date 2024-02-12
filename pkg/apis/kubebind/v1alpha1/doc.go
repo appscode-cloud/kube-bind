@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package v1alpha1 defines the v1alpha1 version of the Kube Bind API
 //
-// +groupName=kube-bind.io
+// +groupName=kube-bind.appscode.com
 // +groupGoName=KubeBind
 // +k8s:deepcopy-gen=package,register
 // +kubebuilder:validation:Optional

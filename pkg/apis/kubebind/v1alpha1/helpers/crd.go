@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 func IsOwnedByBinding(name string, uid types.UID, refs []v1.OwnerReference) bool {

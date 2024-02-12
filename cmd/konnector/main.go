@@ -22,7 +22,7 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/component-base/cli"
 
-	"github.com/kube-bind/kube-bind/cmd/konnector/cmd"
+	"go.bytebuilders.dev/kube-bind/cmd/konnector/cmd"
 )
 
 func main() {

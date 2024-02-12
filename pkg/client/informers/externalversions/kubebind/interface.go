@@ -19,8 +19,8 @@ limitations under the License.
 package kubebind
 
 import (
-	internalinterfaces "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
+	internalinterfaces "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
 )
 
 // Interface provides access to each of this group's versions.

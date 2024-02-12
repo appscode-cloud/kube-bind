@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   name: foos.bar.io
   labels:
-    kube-bind.io/exported: "true"
+    kube-bind.appscode.com/exported: "true"
 spec:
   group: bar.io
   versions:

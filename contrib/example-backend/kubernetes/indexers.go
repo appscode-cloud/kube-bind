@@ -19,7 +19,7 @@ package kubernetes
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
 )
 
 const (

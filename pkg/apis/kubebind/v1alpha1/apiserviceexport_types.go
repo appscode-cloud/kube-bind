@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	SourceSpecHashAnnotationKey = "kube-bind.io/source-spec-hash"
+	SourceSpecHashAnnotationKey = "kube-bind.appscode.com/source-spec-hash"
 )
 
 const (

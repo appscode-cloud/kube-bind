@@ -26,14 +26,14 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/clusterbinding"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/serviceexport"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/serviceexportrequest"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/controllers/servicenamespace"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/deploy"
-	examplehttp "github.com/kube-bind/kube-bind/contrib/example-backend/http"
-	examplekube "github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/clusterbinding"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/serviceexport"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/serviceexportrequest"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/servicenamespace"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/deploy"
+	examplehttp "go.bytebuilders.dev/kube-bind/contrib/example-backend/http"
+	examplekube "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 type Server struct {

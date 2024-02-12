@@ -27,10 +27,10 @@ import (
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	versioned "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/kube-bind/kube-bind/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	versioned "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	internalinterfaces "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
 )
 
 // APIServiceBindingInformer provides access to a shared informer and lister for

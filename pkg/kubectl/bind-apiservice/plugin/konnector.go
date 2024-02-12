@@ -34,9 +34,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/deploy/konnector"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	"github.com/kube-bind/kube-bind/pkg/version"
+	"go.bytebuilders.dev/kube-bind/deploy/konnector"
+	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	"go.bytebuilders.dev/kube-bind/pkg/version"
 )
 
 const (

@@ -25,7 +25,7 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	cache "k8s.io/client-go/tools/cache"
 
-	versioned "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
+	versioned "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
 )
 
 // NewInformerFunc takes versioned.Interface and time.Duration to return a SharedIndexInformer.

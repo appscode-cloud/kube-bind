@@ -40,12 +40,12 @@ import (
 	componentbaseversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
-	"github.com/kube-bind/kube-bind/contrib/example-backend/cookie"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/kubernetes/resources"
-	"github.com/kube-bind/kube-bind/contrib/example-backend/template"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindversion "github.com/kube-bind/kube-bind/pkg/version"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/cookie"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/template"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	bindversion "go.bytebuilders.dev/kube-bind/pkg/version"
 )
 
 var (

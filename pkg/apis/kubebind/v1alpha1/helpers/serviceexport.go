@@ -27,7 +27,7 @@ import (
 	runtime2 "k8s.io/apimachinery/pkg/util/runtime"
 	"sigs.k8s.io/yaml"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 // ServiceExportToCRD converts a APIServiceExport to a CRD.

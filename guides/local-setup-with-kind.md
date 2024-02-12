@@ -76,7 +76,7 @@ Keep this running in the background and move on to the actual **Setup** below.
 
 1. Clone kube-bind repository:
 ```
-git clone https://github.com/kube-bind/kube-bind.git
+git clone https://go.bytebuilders.dev/kube-bind.git
 cd kube-bind/
 ```
 2. Compile:
@@ -167,13 +167,13 @@ Click:
 ✅ Created APIServiceBinding mangodbs.mangodb.com
 
 NAME                                                  PROVIDER   READY   MESSAGE   AGE
-apiservicebinding.kube-bind.io/mangodbs.mangodb.com              True              0s
+apiservicebinding.kube-bind.appscode.com/mangodbs.mangodb.com              True              0s
 ```
 4. To verify that everything worked, check if there is a new "mangodb" CRD in the consumer cluster:
 ```
 kubectl get crds
 NAME                              CREATED AT
-apiservicebindings.kube-bind.io   2023-11-14T14:11:58Z
+apiservicebindings.kube-bind.appscode.com   2023-11-14T14:11:58Z
 mangodbs.mangodb.com              2023-11-14T14:12:01Z
 ```
 5. Create a mangodb CR, by applying this manifest:

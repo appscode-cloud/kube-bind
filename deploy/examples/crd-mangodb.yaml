@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   name: mangodbs.mangodb.com
   labels:
-    kube-bind.io/exported: "true"
+    kube-bind.appscode.com/exported: "true"
 spec:
   group: mangodb.com
   names:

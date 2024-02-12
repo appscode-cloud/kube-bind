@@ -34,13 +34,13 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "github.com/kube-bind/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/committer"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	"github.com/kube-bind/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 const (

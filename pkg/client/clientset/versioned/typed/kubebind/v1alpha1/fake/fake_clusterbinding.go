@@ -23,12 +23,11 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 // FakeClusterBindings implements ClusterBindingInterface
@@ -37,9 +36,9 @@ type FakeClusterBindings struct {
 	ns   string
 }
 
-var clusterbindingsResource = schema.GroupVersionResource{Group: "kube-bind.io", Version: "v1alpha1", Resource: "clusterbindings"}
+var clusterbindingsResource = v1alpha1.SchemeGroupVersion.WithResource("clusterbindings")
 
-var clusterbindingsKind = schema.GroupVersionKind{Group: "kube-bind.io", Version: "v1alpha1", Kind: "ClusterBinding"}
+var clusterbindingsKind = v1alpha1.SchemeGroupVersion.WithKind("ClusterBinding")
 
 // Get takes name of the clusterBinding, and returns the corresponding clusterBinding object, and an error if there is any.
 func (c *FakeClusterBindings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.ClusterBinding, err error) {

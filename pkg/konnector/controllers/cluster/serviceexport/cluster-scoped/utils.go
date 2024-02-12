@@ -27,7 +27,7 @@ import (
 
 // ClusterNsAnnotationKey is the annotation key to identify the cluster namespace that corresponds to
 // provider side copy of a cluster-scoped object. Its value is the corresponding cluster namespace name.
-const ClusterNsAnnotationKey = "kube-bind.io/cluster-namespace"
+const ClusterNsAnnotationKey = "kube-bind.appscode.com/cluster-namespace"
 
 // Prepend adds clusterNs and a dash before name.
 func Prepend(name, clusterNs string) string {

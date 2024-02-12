@@ -1,4 +1,4 @@
-module github.com/kube-bind/kube-bind
+module go.bytebuilders.dev/kube-bind
 
 go 1.21.5
 

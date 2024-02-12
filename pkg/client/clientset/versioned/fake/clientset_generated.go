@@ -25,9 +25,9 @@ import (
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
 
-	clientset "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1"
-	fakekubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1/fake"
+	clientset "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1"
+	fakekubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned/typed/kubebind/v1alpha1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.

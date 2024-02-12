@@ -38,17 +38,17 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
-	"github.com/kube-bind/kube-bind/pkg/indexers"
-	clusterscoped "github.com/kube-bind/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	konnectormodels "github.com/kube-bind/kube-bind/pkg/konnector/models"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	clusterscoped "go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 const (
 	controllerName = "kube-bind-konnector-cluster-spec"
 
-	applyManager = "kube-bind.io"
+	applyManager = "kube-bind.appscode.com"
 )
 
 // NewController returns a new controller reconciling downstream objects to upstream.

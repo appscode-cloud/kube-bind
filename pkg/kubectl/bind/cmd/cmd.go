@@ -28,13 +28,13 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	logsv1 "k8s.io/component-base/logs/api/v1"
 
-	"github.com/kube-bind/kube-bind/pkg/kubectl/bind/plugin"
+	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/plugin"
 )
 
 var (
 	// TODO: add other examples related to permission claim commands.
 	bindExampleUses = `
-	# select a kube-bind.io compatible service from the given URL, e.g. an API service.
+	# select a kube-bind.appscode.com compatible service from the given URL, e.g. an API service.
 	%[1]s bind https://mangodb.com/exports
 
 	# authenticate and configure the services to bind, but don't actually bind them.

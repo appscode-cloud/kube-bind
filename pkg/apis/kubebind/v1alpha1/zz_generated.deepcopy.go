@@ -22,9 +22,9 @@ limitations under the License.
 package v1alpha1
 
 import (
-	conditionsv1alpha1 "kmodules.xyz/client-go/api/v1"
+	v1 "kmodules.xyz/client-go/api/v1"
 
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -125,7 +125,7 @@ func (in *APIServiceBindingStatus) DeepCopyInto(out *APIServiceBindingStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(conditionsv1alpha1.Conditions, len(*in))
+		*out = make(v1.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -372,7 +372,7 @@ func (in *APIServiceExportRequestStatus) DeepCopyInto(out *APIServiceExportReque
 	*out = *in
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(conditionsv1alpha1.Conditions, len(*in))
+		*out = make(v1.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -435,7 +435,7 @@ func (in *APIServiceExportStatus) DeepCopyInto(out *APIServiceExportStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(conditionsv1alpha1.Conditions, len(*in))
+		*out = make(v1.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -465,7 +465,7 @@ func (in *APIServiceExportVersion) DeepCopyInto(out *APIServiceExportVersion) {
 	in.Subresources.DeepCopyInto(&out.Subresources)
 	if in.AdditionalPrinterColumns != nil {
 		in, out := &in.AdditionalPrinterColumns, &out.AdditionalPrinterColumns
-		*out = make([]v1.CustomResourceColumnDefinition, len(*in))
+		*out = make([]apiextensionsv1.CustomResourceColumnDefinition, len(*in))
 		copy(*out, *in)
 	}
 	return
@@ -788,7 +788,7 @@ func (in *ClusterBindingStatus) DeepCopyInto(out *ClusterBindingStatus) {
 	out.HeartbeatInterval = in.HeartbeatInterval
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make(conditionsv1alpha1.Conditions, len(*in))
+		*out = make(v1.Conditions, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

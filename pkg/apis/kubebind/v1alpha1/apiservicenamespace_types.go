@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	APIServiceNamespaceAnnotationKey = "kube-bind.io/api-service-namespace"
+	APIServiceNamespaceAnnotationKey = "kube-bind.appscode.com/api-service-namespace"
 )
 
 // APIServiceNamespace defines how consumer namespaces map to service namespaces.

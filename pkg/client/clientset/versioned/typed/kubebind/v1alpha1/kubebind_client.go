@@ -23,8 +23,8 @@ import (
 
 	rest "k8s.io/client-go/rest"
 
-	v1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned/scheme"
 )
 
 type KubeBindV1alpha1Interface interface {
@@ -36,7 +36,7 @@ type KubeBindV1alpha1Interface interface {
 	ClusterBindingsGetter
 }
 
-// KubeBindV1alpha1Client is used to interact with features provided by the kube-bind.io group.
+// KubeBindV1alpha1Client is used to interact with features provided by the kube-bind.appscode.com group.
 type KubeBindV1alpha1Client struct {
 	restClient rest.Interface
 }

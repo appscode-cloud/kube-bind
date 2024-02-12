@@ -30,9 +30,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 
-	kubebindv1alpha1 "github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"github.com/kube-bind/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
-	bindclient "github.com/kube-bind/kube-bind/pkg/client/clientset/versioned"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
+	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
 )
 
 const (
