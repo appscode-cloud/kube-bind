@@ -88,12 +88,17 @@ type APIServiceBindingSpec struct {
 	KubeconfigSecretRefs []ClusterSecretKeyRef `json:"kubeconfigSecretRefs"`
 }
 
-type APIServiceBindingStatus struct {
+type Provider struct {
 	// providerPrettyName is the pretty name of the service provider cluster. This
 	// can be shared among different APIServiceBindings.
-	ProviderPrettyName []string `json:"providerPrettyName,omitempty"`
+	PrettyName string `json:"providerPrettyName,omitempty"`
 
-	Kubeconfigs []ClusterSecretKeyRef `json:"kubeconfigs,omitempty"`
+	Kubeconfig ClusterSecretKeyRef `json:"kubeconfigs,omitempty"`
+}
+
+type APIServiceBindingStatus struct {
+	// Providers contains the PrettyName and KubeconfigSecretRef of the provider cluster
+	Providers []Provider `json:"providers,omitempty"`
 
 	// conditions is a list of conditions that apply to the APIServiceBinding.
 	Conditions conditionsapi.Conditions `json:"conditions,omitempty"`

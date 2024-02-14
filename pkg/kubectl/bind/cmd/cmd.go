@@ -51,7 +51,7 @@ var (
 func New(streams genericclioptions.IOStreams) (*cobra.Command, error) {
 	opts := plugin.NewBindOptions(streams)
 	cmd := &cobra.Command{
-		Use:          "bind",
+		Use:          "connect",
 		Short:        "Bind different remote types into the current cluster.",
 		Example:      fmt.Sprintf(bindExampleUses, "kubectl"),
 		SilenceUsage: true,

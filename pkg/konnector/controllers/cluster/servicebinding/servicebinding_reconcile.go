@@ -199,16 +199,17 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *kubebindv1alpha1.A
 }
 
 func (r *reconciler) ensurePrettyName(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
-	binding.Status.ProviderPrettyName = []string{}
+	binding.Status.Providers = []kubebindv1alpha1.Provider{}
 	for _, provider := range r.providerInfos {
 		clusterBinding, err := r.getClusterBinding(ctx, provider)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if errors.IsNotFound(err) {
-			binding.Status.ProviderPrettyName = []string{}
 			return nil
 		}
-		binding.Status.ProviderPrettyName = append(binding.Status.ProviderPrettyName, clusterBinding.Spec.ProviderPrettyName)
+		prov := kubebindv1alpha1.Provider{}
+		prov.PrettyName = clusterBinding.Spec.ProviderPrettyName
+		binding.Status.Providers = append(binding.Status.Providers, prov)
 	}
 
 	return nil
