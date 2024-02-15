@@ -2,8 +2,6 @@ module go.bytebuilders.dev/kube-bind
 
 go 1.19
 
-toolchain go1.21.7
-
 require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/coreos/go-oidc v2.2.1+incompatible

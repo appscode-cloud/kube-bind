@@ -208,6 +208,10 @@ func (r *reconciler) ensurePrettyName(ctx context.Context, binding *kubebindv1al
 			return nil
 		}
 		prov := kubebindv1alpha1.Provider{}
+		prov.Kubeconfig = &kubebindv1alpha1.ClusterSecretKeyRef{
+			LocalSecretKeyRef: clusterBinding.Spec.KubeconfigSecretRef,
+			Namespace:         clusterBinding.Namespace,
+		}
 		prov.PrettyName = clusterBinding.Spec.ProviderPrettyName
 		binding.Status.Providers = append(binding.Status.Providers, prov)
 	}

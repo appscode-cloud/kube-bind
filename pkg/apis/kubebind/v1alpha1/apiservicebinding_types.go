@@ -93,7 +93,7 @@ type Provider struct {
 	// can be shared among different APIServiceBindings.
 	PrettyName string `json:"providerPrettyName,omitempty"`
 
-	Kubeconfig ClusterSecretKeyRef `json:"kubeconfigs,omitempty"`
+	Kubeconfig *ClusterSecretKeyRef `json:"kubeconfigs,omitempty"`
 }
 
 type APIServiceBindingStatus struct {
