@@ -1,11 +1,11 @@
 apiVersion: docker-machine.klusters.dev/v1alpha1
 kind: Machine
 metadata:
-  name: rancher-vm-01
+  name: rancher-vm-04
   namespace: demo
-#  annotations:
-#    provider.kube-bind.appscode.com/cluster-id: 8f18c509-4c42-440c-a21d-c5eff65b70ba
-#    provider.kube-bind.appscode.com/cluster-id: e2e5da71-228a-4c19-bc0e-5efdf33f5875
+  annotations:
+#    provider.kube-bind.appscode.com/cluster-id: 71a87546-b339-45ee-bca5-033d277faca2
+    provider.kube-bind.appscode.com/cluster-id: e95736c6-06f2-43ae-9f17-bbcc0c38c4ed
 spec:
   driver:
     name: google

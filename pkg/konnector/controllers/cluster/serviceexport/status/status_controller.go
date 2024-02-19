@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -43,7 +44,8 @@ import (
 )
 
 const (
-	controllerName = "kube-bind-konnector-cluster-status"
+	controllerName               = "kube-bind-konnector-cluster-status"
+	errorContextDeadlineExceeded = "context deadline exceeded"
 )
 
 // NewController returns a new controller reconciling status of upstream to downstream.
@@ -366,6 +368,7 @@ func (c *controller) processNextWorkItem(ctx context.Context) bool {
 
 	if err := c.process(ctx, key); err != nil {
 		runtime.HandleError(fmt.Errorf("%q controller failed to sync %q, err: %w", controllerName, key, err))
+		klog.Errorf(err.Error())
 		c.queue.AddRateLimited(key)
 		return true
 	}
@@ -405,16 +408,31 @@ func (c *controller) process(ctx context.Context, key string) error {
 		return err
 	}
 
-	obj, err := provider.ProviderDynamicInformer.Get(ns, name)
-	if err != nil && !errors.IsNotFound(err) {
+	var obj k8sruntime.Object
+	err = wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		obj, err = provider.ProviderDynamicInformer.Get(ns, name)
+		if err != nil && !errors.IsNotFound(err) {
+			return false, err
+		} else if errors.IsNotFound(err) {
+			klog.Infof(fmt.Sprintf("!!!!!!!!!!!!!!!!!!! error: %s", err.Error()))
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil && !errors.IsNotFound(err) && !strings.Contains(err.Error(), errorContextDeadlineExceeded) {
+		klog.Errorf(err.Error())
 		return err
-	} else if errors.IsNotFound(err) {
+	} else if err != nil && (errors.IsNotFound(err) || strings.Contains(err.Error(), errorContextDeadlineExceeded)) {
 		logger.V(2).Info("Upstream object disappeared")
 
 		downstream, err := c.consumerDynamicLister.Namespace(ns).Get(name)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if err == nil {
+			if downstream.GetAnnotations()[konnectormodels.AnnotationProviderClusterID] != provider.ClusterID {
+				return nil
+			}
 			if _, err := c.removeDownstreamFinalizer(ctx, downstream); err != nil {
 				return err
 			}

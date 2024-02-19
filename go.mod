@@ -1,6 +1,8 @@
 module go.bytebuilders.dev/kube-bind
 
-go 1.19
+go 1.21.5
+
+toolchain go1.21.7
 
 require (
 	github.com/blang/semver/v4 v4.0.0
