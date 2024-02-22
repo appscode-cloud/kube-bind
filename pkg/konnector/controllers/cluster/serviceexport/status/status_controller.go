@@ -19,9 +19,15 @@ package status
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	clusterscoped "go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -36,16 +42,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	clusterscoped "go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+	kmc "kmodules.xyz/client-go/client"
 )
 
 const (
 	controllerName               = "kube-bind-konnector-cluster-status"
 	errorContextDeadlineExceeded = "context deadline exceeded"
+	errorAlreadyExists           = "already exists"
 )
 
 // NewController returns a new controller reconciling status of upstream to downstream.
@@ -65,6 +68,11 @@ func NewController(
 	for _, provider := range providerInfos {
 		provider.Config = rest.CopyConfig(provider.Config)
 		provider.Config = rest.AddUserAgent(provider.Config, controllerName)
+	}
+
+	consumerKubeClient, err := kmc.NewUncachedClient(consumerConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	consumerClient, err := dynamicclient.NewForConfig(consumerConfig)
@@ -139,6 +147,70 @@ func NewController(
 					return updated, nil
 				}
 				return updated, nil
+			},
+			ensureStatusSecret: func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status interface{}, providerNS string) (string, error) {
+				//TODO: uncomment this for testing
+				//upSecretName, found, err := unstructured.NestedString(upstream.Object, "spec", "driver", "name")
+				upSecretName, found, err := unstructured.NestedString(upstream.Object, "status", "secretRef", "name")
+				if err != nil {
+					return "", err
+				}
+
+				if !found {
+					klog.Warningf("no secretRef found in object %s status", upstream.GetName())
+					return "", nil
+				}
+				providerSecret, err := provider.KubeClient.CoreV1().Secrets(upstream.GetNamespace()).Get(ctx, upSecretName, metav1.GetOptions{})
+				if err != nil {
+					return "", err
+				}
+				consumerSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      providerSecret.Name + "-" + provider.ClusterID,
+						Namespace: downstream.GetNamespace(),
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion: downstream.GetAPIVersion(),
+								Kind:       downstream.GetKind(),
+								UID:        downstream.GetUID(),
+								Name:       downstream.GetName(),
+							},
+						},
+					},
+					Data: providerSecret.Data,
+				}
+
+				//delete backdated secret from consumer
+				//TODO: uncomment this for testing
+				//oldSecretName, found, err := unstructured.NestedString(downstream.Object, "spec", "scriptRef", "name")
+				oldSecretName, found, err := unstructured.NestedString(downstream.Object, "status", "secretRef", "name")
+				if err != nil {
+					return "", err
+				}
+				if found {
+					if err = consumerClient.Resource(schema.GroupVersionResource{
+						Group:    "",
+						Version:  "v1",
+						Resource: "secrets",
+					}).Namespace(downstream.GetNamespace()).Delete(ctx, oldSecretName, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+						return "", err
+					} else if errors.IsNotFound(err) {
+						klog.Infof("%s/%s secret not found in downstream", downstream.GetNamespace(), oldSecretName)
+					} else {
+						klog.Infof("secret %s/%s deleted", downstream.GetNamespace(), oldSecretName)
+					}
+				}
+
+				if _, err = kmc.CreateOrPatch(ctx, consumerKubeClient, consumerSecret, func(_ client.Object, _ bool) client.Object {
+					return consumerSecret
+				}); err != nil && !strings.Contains(err.Error(), errorAlreadyExists) {
+					klog.Errorf(err.Error())
+					return "", err
+				}
+
+				klog.Infof("secret %s/%s successfully created", consumerSecret.Namespace, consumerSecret.Name)
+
+				return consumerSecret.Name, nil
 			},
 			deleteProviderObject: func(ctx context.Context, provider *konnectormodels.ProviderInfo, ns, name string) error {
 				return provider.Client.Resource(gvr).Namespace(ns).Delete(ctx, name, metav1.DeleteOptions{})
@@ -414,7 +486,6 @@ func (c *controller) process(ctx context.Context, key string) error {
 		if err != nil && !errors.IsNotFound(err) {
 			return false, err
 		} else if errors.IsNotFound(err) {
-			klog.Infof(fmt.Sprintf("!!!!!!!!!!!!!!!!!!! error: %s", err.Error()))
 			return false, nil
 		}
 		return true, nil
