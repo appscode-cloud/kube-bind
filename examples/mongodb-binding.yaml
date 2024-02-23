@@ -1,0 +1,9 @@
+apiVersion: catalog.appscode.com/v1alpha1
+kind: MongoDBBinding
+metadata:
+  name: binding
+  namespace: demo
+spec:
+  sourceRef:
+    name: mongo
+    namespace: db

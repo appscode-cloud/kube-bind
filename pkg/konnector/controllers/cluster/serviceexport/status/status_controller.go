@@ -149,8 +149,6 @@ func NewController(
 				return updated, nil
 			},
 			ensureStatusSecret: func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status interface{}, providerNS string) (string, error) {
-				//TODO: uncomment this for testing
-				//upSecretName, found, err := unstructured.NestedString(upstream.Object, "spec", "driver", "name")
 				upSecretName, found, err := unstructured.NestedString(upstream.Object, "status", "secretRef", "name")
 				if err != nil {
 					return "", err
@@ -181,8 +179,6 @@ func NewController(
 				}
 
 				//delete backdated secret from consumer
-				//TODO: uncomment this for testing
-				//oldSecretName, found, err := unstructured.NestedString(downstream.Object, "spec", "scriptRef", "name")
 				oldSecretName, found, err := unstructured.NestedString(downstream.Object, "status", "secretRef", "name")
 				if err != nil {
 					return "", err
