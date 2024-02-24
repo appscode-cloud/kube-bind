@@ -143,34 +143,37 @@ spec:
                   - type
                   type: object
                 type: array
-              kubeconfigs:
+              providers:
+                description: Providers contains the PrettyName and KubeconfigSecretRef
+                  of the provider cluster
                 items:
                   properties:
-                    key:
-                      description: The key of the secret to select from.  Must be
-                        "kubeconfig".
-                      enum:
-                      - kubeconfig
+                    kubeconfigs:
+                      properties:
+                        key:
+                          description: The key of the secret to select from.  Must
+                            be "kubeconfig".
+                          enum:
+                          - kubeconfig
+                          type: string
+                        name:
+                          description: Name of the referent.
+                          minLength: 1
+                          type: string
+                        namespace:
+                          description: Namespace of the referent.
+                          minLength: 1
+                          type: string
+                      required:
+                      - key
+                      - name
+                      - namespace
+                      type: object
+                    providerPrettyName:
+                      description: providerPrettyName is the pretty name of the service
+                        provider cluster. This can be shared among different APIServiceBindings.
                       type: string
-                    name:
-                      description: Name of the referent.
-                      minLength: 1
-                      type: string
-                    namespace:
-                      description: Namespace of the referent.
-                      minLength: 1
-                      type: string
-                  required:
-                  - key
-                  - name
-                  - namespace
                   type: object
-                type: array
-              providerPrettyName:
-                description: providerPrettyName is the pretty name of the service
-                  provider cluster. This can be shared among different APIServiceBindings.
-                items:
-                  type: string
                 type: array
             type: object
         type: object

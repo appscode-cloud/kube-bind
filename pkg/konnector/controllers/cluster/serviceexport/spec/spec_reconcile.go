@@ -57,6 +57,8 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		return err
 	}
 
+	klog.Infof(fmt.Sprintf("reconciling object %s/%s for provider %s", obj.GetNamespace(), obj.GetName(), provider.ClusterID))
+
 	ns := obj.GetNamespace()
 	if ns != "" {
 		sn, err := r.getServiceNamespace(provider, ns)
@@ -102,6 +104,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		}
 
 		if obj, err = r.ensureDownstreamFinalizer(ctx, obj); err != nil {
+			klog.Errorf(err.Error())
 			return err
 		}
 
@@ -148,6 +151,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	// just in case, checking for finalizer
 	if obj, err = r.ensureDownstreamFinalizer(ctx, obj); err != nil {
+		klog.Errorf(err.Error())
 		return err
 	}
 

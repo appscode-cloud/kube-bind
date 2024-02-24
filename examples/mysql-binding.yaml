@@ -1,0 +1,9 @@
+apiVersion: catalog.appscode.com/v1alpha1
+kind: MySQLBinding
+metadata:
+  name: mysql-binding
+  namespace: demo
+spec:
+  sourceRef:
+    name: mysql
+    namespace: db

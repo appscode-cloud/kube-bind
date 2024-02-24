@@ -19,12 +19,19 @@ package status
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	clusterscoped "go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -35,15 +42,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	clusterscoped "go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+	kmc "kmodules.xyz/client-go/client"
 )
 
 const (
-	controllerName = "kube-bind-konnector-cluster-status"
+	controllerName               = "kube-bind-konnector-cluster-status"
+	errorContextDeadlineExceeded = "context deadline exceeded"
+	errorAlreadyExists           = "already exists"
 )
 
 // NewController returns a new controller reconciling status of upstream to downstream.
@@ -63,6 +68,11 @@ func NewController(
 	for _, provider := range providerInfos {
 		provider.Config = rest.CopyConfig(provider.Config)
 		provider.Config = rest.AddUserAgent(provider.Config, controllerName)
+	}
+
+	consumerKubeClient, err := kmc.NewUncachedClient(consumerConfig)
+	if err != nil {
+		return nil, err
 	}
 
 	consumerClient, err := dynamicclient.NewForConfig(consumerConfig)
@@ -137,6 +147,66 @@ func NewController(
 					return updated, nil
 				}
 				return updated, nil
+			},
+			ensureStatusSecret: func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status interface{}, providerNS string) (string, error) {
+				upSecretName, found, err := unstructured.NestedString(upstream.Object, "status", "secretRef", "name")
+				if err != nil {
+					return "", err
+				}
+
+				if !found {
+					klog.Warningf("no secretRef found in object %s status", upstream.GetName())
+					return "", nil
+				}
+				providerSecret, err := provider.KubeClient.CoreV1().Secrets(upstream.GetNamespace()).Get(ctx, upSecretName, metav1.GetOptions{})
+				if err != nil {
+					return "", err
+				}
+				consumerSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      providerSecret.Name + "-" + provider.ClusterID,
+						Namespace: downstream.GetNamespace(),
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion: downstream.GetAPIVersion(),
+								Kind:       downstream.GetKind(),
+								UID:        downstream.GetUID(),
+								Name:       downstream.GetName(),
+							},
+						},
+					},
+					Data: providerSecret.Data,
+				}
+
+				//delete backdated secret from consumer
+				oldSecretName, found, err := unstructured.NestedString(downstream.Object, "status", "secretRef", "name")
+				if err != nil {
+					return "", err
+				}
+				if found {
+					if err = consumerClient.Resource(schema.GroupVersionResource{
+						Group:    "",
+						Version:  "v1",
+						Resource: "secrets",
+					}).Namespace(downstream.GetNamespace()).Delete(ctx, oldSecretName, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+						return "", err
+					} else if errors.IsNotFound(err) {
+						klog.Infof("%s/%s secret not found in downstream", downstream.GetNamespace(), oldSecretName)
+					} else {
+						klog.Infof("secret %s/%s deleted", downstream.GetNamespace(), oldSecretName)
+					}
+				}
+
+				if _, err = kmc.CreateOrPatch(ctx, consumerKubeClient, consumerSecret, func(_ client.Object, _ bool) client.Object {
+					return consumerSecret
+				}); err != nil && !strings.Contains(err.Error(), errorAlreadyExists) {
+					klog.Errorf(err.Error())
+					return "", err
+				}
+
+				klog.Infof("secret %s/%s successfully created", consumerSecret.Namespace, consumerSecret.Name)
+
+				return consumerSecret.Name, nil
 			},
 			deleteProviderObject: func(ctx context.Context, provider *konnectormodels.ProviderInfo, ns, name string) error {
 				return provider.Client.Resource(gvr).Namespace(ns).Delete(ctx, name, metav1.DeleteOptions{})
@@ -366,6 +436,7 @@ func (c *controller) processNextWorkItem(ctx context.Context) bool {
 
 	if err := c.process(ctx, key); err != nil {
 		runtime.HandleError(fmt.Errorf("%q controller failed to sync %q, err: %w", controllerName, key, err))
+		klog.Errorf(err.Error())
 		c.queue.AddRateLimited(key)
 		return true
 	}
@@ -405,16 +476,30 @@ func (c *controller) process(ctx context.Context, key string) error {
 		return err
 	}
 
-	obj, err := provider.ProviderDynamicInformer.Get(ns, name)
-	if err != nil && !errors.IsNotFound(err) {
+	var obj k8sruntime.Object
+	err = wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (done bool, err error) {
+		obj, err = provider.ProviderDynamicInformer.Get(ns, name)
+		if err != nil && !errors.IsNotFound(err) {
+			return false, err
+		} else if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return true, nil
+	})
+
+	if err != nil && !errors.IsNotFound(err) && !strings.Contains(err.Error(), errorContextDeadlineExceeded) {
+		klog.Errorf(err.Error())
 		return err
-	} else if errors.IsNotFound(err) {
+	} else if err != nil && (errors.IsNotFound(err) || strings.Contains(err.Error(), errorContextDeadlineExceeded)) {
 		logger.V(2).Info("Upstream object disappeared")
 
 		downstream, err := c.consumerDynamicLister.Namespace(ns).Get(name)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if err == nil {
+			if downstream.GetAnnotations()[konnectormodels.AnnotationProviderClusterID] != provider.ClusterID {
+				return nil
+			}
 			if _, err := c.removeDownstreamFinalizer(ctx, downstream); err != nil {
 				return err
 			}
