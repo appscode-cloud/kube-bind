@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,25 +21,24 @@ import (
 	"fmt"
 	"time"
 
-	conditionsapi "kmodules.xyz/client-go/api/v1"
-	"kmodules.xyz/client-go/conditions"
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1/helpers"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
 
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1/helpers"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 const (
 	kubeconfigSecretNamespace = "kube-bind"
 )
 
-func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *kubebindv1alpha1.APIServiceExportRequest, secretName string) ([]*kubebindv1alpha1.APIServiceBinding, error) {
+func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *v1alpha1.APIServiceExportRequest, secretName string) ([]*v1alpha1.APIServiceBinding, error) {
 	bindClient, err := bindclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -49,7 +48,7 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 		return nil, err
 	}
 
-	var bindings []*kubebindv1alpha1.APIServiceBinding
+	var bindings []*v1alpha1.APIServiceBinding
 	for _, resource := range request.Spec.Resources {
 		name := resource.Resource + "." + resource.Group
 		existing, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Get(ctx, name, metav1.GetOptions{})
@@ -74,8 +73,8 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 
 			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
 
-			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, kubebindv1alpha1.ClusterSecretKeyRef{
-				LocalSecretKeyRef: kubebindv1alpha1.LocalSecretKeyRef{
+			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, v1alpha1.ClusterSecretKeyRef{
+				LocalSecretKeyRef: v1alpha1.LocalSecretKeyRef{
 					Name: secretName,
 					Key:  "kubeconfig",
 				},
@@ -108,15 +107,15 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 				first = false
 				fmt.Fprint(b.Options.IOStreams.ErrOut, ".") // nolint: errcheck
 			}
-			created, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Create(ctx, &kubebindv1alpha1.APIServiceBinding{
+			created, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Create(ctx, &v1alpha1.APIServiceBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      resource.Resource + "." + resource.Group,
 					Namespace: "kube-bind",
 				},
-				Spec: kubebindv1alpha1.APIServiceBindingSpec{
-					KubeconfigSecretRefs: []kubebindv1alpha1.ClusterSecretKeyRef{
+				Spec: v1alpha1.APIServiceBindingSpec{
+					KubeconfigSecretRefs: []v1alpha1.ClusterSecretKeyRef{
 						{
-							LocalSecretKeyRef: kubebindv1alpha1.LocalSecretKeyRef{
+							LocalSecretKeyRef: v1alpha1.LocalSecretKeyRef{
 								Name: secretName,
 								Key:  "kubeconfig",
 							},

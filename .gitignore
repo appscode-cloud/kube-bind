@@ -13,3 +13,4 @@ coverage.*
 /build
 /dex
 /bin
+/.config

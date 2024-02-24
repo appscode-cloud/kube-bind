@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,12 +22,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/pflag"
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
 
+	"github.com/spf13/pflag"
 	"k8s.io/component-base/logs"
 	logsv1 "k8s.io/component-base/logs/api/v1"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 type Options struct {
@@ -80,8 +79,8 @@ func NewOptions() *Options {
 		ExtraOptions: ExtraOptions{
 			NamespacePrefix:        "cluster",
 			PrettyName:             "Example Backend",
-			ConsumerScope:          string(kubebindv1alpha1.NamespacedScope),
-			ClusterScopedIsolation: string(kubebindv1alpha1.IsolationPrefixed),
+			ConsumerScope:          string(v1alpha1.NamespacedScope),
+			ClusterScopedIsolation: string(v1alpha1.IsolationPrefixed),
 		},
 	}
 }
@@ -118,18 +117,18 @@ func (options *Options) Complete() (*CompletedOptions, error) {
 
 	// normalize the scope and the isolation
 	if strings.ToLower(options.ConsumerScope) == "namespaced" {
-		options.ConsumerScope = string(kubebindv1alpha1.NamespacedScope)
+		options.ConsumerScope = string(v1alpha1.NamespacedScope)
 	}
 	if strings.ToLower(options.ConsumerScope) == "cluster" {
-		options.ConsumerScope = string(kubebindv1alpha1.ClusterScope)
+		options.ConsumerScope = string(v1alpha1.ClusterScope)
 	}
 	switch strings.ToLower(options.ClusterScopedIsolation) {
 	case "prefixed":
-		options.ClusterScopedIsolation = string(kubebindv1alpha1.IsolationPrefixed)
+		options.ClusterScopedIsolation = string(v1alpha1.IsolationPrefixed)
 	case "namespaced":
-		options.ClusterScopedIsolation = string(kubebindv1alpha1.IsolationNamespaced)
+		options.ClusterScopedIsolation = string(v1alpha1.IsolationNamespaced)
 	case "none":
-		options.ClusterScopedIsolation = string(kubebindv1alpha1.IsolationNone)
+		options.ClusterScopedIsolation = string(v1alpha1.IsolationNone)
 	}
 
 	if options.ExternalCAFile != "" && options.ExternalCA != nil {
@@ -168,8 +167,8 @@ func (options *CompletedOptions) Validate() error {
 	if err := options.Cookie.Validate(); err != nil {
 		return err
 	}
-	if options.ConsumerScope != string(kubebindv1alpha1.NamespacedScope) && options.ConsumerScope != string(kubebindv1alpha1.ClusterScope) {
-		return fmt.Errorf("consumer scope must be either %q or %q", kubebindv1alpha1.NamespacedScope, kubebindv1alpha1.ClusterScope)
+	if options.ConsumerScope != string(v1alpha1.NamespacedScope) && options.ConsumerScope != string(v1alpha1.ClusterScope) {
+		return fmt.Errorf("consumer scope must be either %q or %q", v1alpha1.NamespacedScope, v1alpha1.ClusterScope)
 	}
 
 	if options.ExternalAddress != "" {

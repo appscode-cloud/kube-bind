@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,9 +31,12 @@ import (
 	"strings"
 	"time"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/kubectl/base"
+	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/authenticator"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,10 +45,6 @@ import (
 	kubeclient "k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
 	logsv1 "k8s.io/component-base/logs/api/v1"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/kubectl/base"
-	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/authenticator"
 )
 
 // BindOptions contains the options for creating an APIBinding.
@@ -78,7 +77,7 @@ func NewBindOptions(streams genericclioptions.IOStreams) *BindOptions {
 	opts := &BindOptions{
 		Options: base.NewOptions(streams),
 		Logs:    logs.NewOptions(),
-		Print:   genericclioptions.NewPrintFlags("kubectl-bind").WithDefaultOutput("yaml"),
+		Print:   genericclioptions.NewPrintFlags("kubectl-connect").WithDefaultOutput("yaml"),
 
 		Runner: func(cmd *exec.Cmd) error {
 			return cmd.Run()
@@ -155,7 +154,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return fmt.Errorf("failed to fetch authentication url %q: %v", exportURL, err)
 	}
 
-	if provider.APIVersion != kubebindv1alpha1.GroupVersion {
+	if provider.APIVersion != v1alpha1.GroupVersion {
 		return fmt.Errorf("unsupported binding provider version: %q", provider.APIVersion)
 	}
 
@@ -197,10 +196,10 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	fmt.Fprintf(b.IOStreams.ErrOut, "🔑 Successfully authenticated to %s\n", exportURL.String()) // nolint: errcheck
 
 	// verify the response
-	if gvk.GroupVersion() != kubebindv1alpha1.SchemeGroupVersion || gvk.Kind != "BindingResponse" {
-		return fmt.Errorf("unexpected response type %s, only supporting %s", gvk, kubebindv1alpha1.SchemeGroupVersion.WithKind("BindingResponse"))
+	if gvk.GroupVersion() != v1alpha1.SchemeGroupVersion || gvk.Kind != "BindingResponse" {
+		return fmt.Errorf("unexpected response type %s, only supporting %s", gvk, v1alpha1.SchemeGroupVersion.WithKind("BindingResponse"))
 	}
-	bindingResponse, ok := response.(*kubebindv1alpha1.BindingResponse)
+	bindingResponse, ok := response.(*v1alpha1.BindingResponse)
 	if !ok {
 		return fmt.Errorf("unexpected response type %T", response)
 	}
@@ -212,16 +211,16 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	}
 
 	// extract the requests
-	var apiRequests []*kubebindv1alpha1.APIServiceExportRequestResponse
+	var apiRequests []*v1alpha1.APIServiceExportRequestResponse
 	for i, request := range bindingResponse.Requests {
 		var meta metav1.TypeMeta
 		if err := json.Unmarshal(request.Raw, &meta); err != nil {
 			return fmt.Errorf("unexpected response: failed to unmarshal request #%d: %v", i, err)
 		}
-		if got, expected := meta.APIVersion, kubebindv1alpha1.SchemeGroupVersion.String(); got != expected {
+		if got, expected := meta.APIVersion, v1alpha1.SchemeGroupVersion.String(); got != expected {
 			return fmt.Errorf("unexpected response: request #%d is not %s, got %s", i, expected, got)
 		}
-		var apiRequest kubebindv1alpha1.APIServiceExportRequestResponse
+		var apiRequest v1alpha1.APIServiceExportRequestResponse
 		if err := json.Unmarshal(request.Raw, &apiRequest); err != nil {
 			return fmt.Errorf("failed to unmarshal api request #%d: %v", i+1, err)
 		}

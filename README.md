@@ -2,29 +2,24 @@
 
 # kube-bind
 
-### Disclaimer: work in progress and not ready for production use. 
-
-You are invited to [contribute](#contributing)!
-
 ## What is it?
 
-kube-bind is a prototype project that aims to provide better support for service providers and consumers that reside in distinct Kubernetes clusters.
+kube-bind is a project that aims to provide better support for service providers and consumers that reside in distinct Kubernetes clusters. The code in this repo has been forked from the [kube-bind](https://github.com/kube-bind/kube-bind) project.
 
 - A service provider defines its API in terms of CRDs and associated permission claims/limitations, and exports it for use from other clusters.
 - Service consumers identify the services they want to consume.
 - The service CRDs get installed in the service consumer clusters, with objects of the defined kinds written and read by the service consumers.
 - The service provider indirectly reads and writes those objects as the interface to the service that it provides.
 - The service provider does not inject controllers/operators into the service consumer's cluster.
-- A single vendor-neutral, OpenSource agent per consumer cluster connects it with the requested services.
 
 ## Try it out
 
 This is the 3 line pitch:
 
 ```shell
-$ kubectl krew index add bind https://github.com/kube-bind/krew-index.git
-$ kubectl krew install bind/bind
-$ kubectl bind https://mangodb/exports
+$ kubectl krew index add bind https://github.com/appscode/krew-index.git
+$ kubectl krew install appscode/connect
+$ kubectl connect https://mangodb/exports
 Redirect to the brower to authenticate via OIDC.
 BOOM – the MangoDB API is available in the local cluster, 
        without anything MangoDB-specific running.
@@ -39,18 +34,6 @@ or the [KubeCon talk](https://www.youtube.com/watch?v=Uv0ivz5xej4).
 The kube-bind prototype is following this manifesto from the linked talk:
 
 ![kube-bind manifesto](docs/images/manifesto.png)
-
-## Contributing
-
-We ❤️ our contributors! If you're interested in helping us out, please check out 
-[Contributing to kube-bind](./CONTRIBUTING.md) and [kube-bind Project Governance](./GOVERNANCE.md).
-
-## Getting in touch
-
-There are several ways to communicate with us:
-
-- The [`#kube-bind` channel](https://kubernetes.slack.com/archives/C046PRXNJ4W) in the [Kubernetes Slack workspace](https://slack.k8s.io)
-- Our mailing list [kube-bind-dev](https://groups.google.com/g/kube-bind-dev) for development discussions.
 
 ## Technical Overview
 
@@ -111,3 +94,8 @@ The `--cookie-signing-key` option is required and supports 32 and 64 byte length
 The `--cookie-encryption-key` option is optional and supports byte lengths of 16, 24, 32 for AES-128, AES-192, or AES-256.
 
 * with a KUBECONFIG against another cluster (a consumer cluster) bind a service: `kubectl bind http://127.0.0.1:8080/export`.
+
+## Copyright
+
+Copyright 2022-2023 The Kube Bind Authors.
+Copyright 2024 AppsCode Inc. and Contributors.

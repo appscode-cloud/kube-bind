@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,14 @@ import (
 	"fmt"
 	"time"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,14 +39,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -64,7 +64,7 @@ func NewController(
 		provider.Config = rest.CopyConfig(provider.Config)
 		provider.Config = rest.AddUserAgent(provider.Config, controllerName)
 
-		//create shared informer factory
+		// create shared informer factory
 		var err error
 		if provider.BindClient, err = bindclient.NewForConfig(provider.Config); err != nil {
 			return nil, err
@@ -90,13 +90,13 @@ func NewController(
 			getCRD: func(name string) (*apiextensionsv1.CustomResourceDefinition, error) {
 				return crdInformer.Lister().Get(name)
 			},
-			getServiceBinding: func(name string) (*kubebindv1alpha1.APIServiceBinding, error) {
+			getServiceBinding: func(name string) (*v1alpha1.APIServiceBinding, error) {
 				return serviceBindingInformer.Lister().Get(name)
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceExport, *kubebindv1alpha1.APIServiceExportSpec, *kubebindv1alpha1.APIServiceExportStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceExport] {
+		commit: committer.NewCommitter[*v1alpha1.APIServiceExport, *v1alpha1.APIServiceExportSpec, *v1alpha1.APIServiceExportStatus](
+			func(ns string) committer.Patcher[*v1alpha1.APIServiceExport] {
 				provider, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
 				if err != nil {
 					klog.Errorf(fmt.Sprintf("failed to get any provider with namespace: %s", ns))
@@ -131,8 +131,10 @@ func NewController(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceExportSpec, *kubebindv1alpha1.APIServiceExportStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*v1alpha1.APIServiceExportSpec, *v1alpha1.APIServiceExportStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 // controller reconciles ServiceExportResources and starts and stop syncers.
 type controller struct {
@@ -160,7 +162,7 @@ func (c *controller) enqueueServiceExport(logger klog.Logger, obj interface{}) {
 }
 
 func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) {
-	binding, ok := obj.(*kubebindv1alpha1.APIServiceBinding)
+	binding, ok := obj.(*v1alpha1.APIServiceBinding)
 	if !ok {
 		runtime.HandleError(fmt.Errorf("unexpected type %T", obj))
 		return

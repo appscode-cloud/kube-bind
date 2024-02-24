@@ -1,11 +1,11 @@
 /*
-Copyright 2023 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,22 +20,21 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 
+	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
 )
 
 func TestEnsureCRDs(t *testing.T) {
 	tests := []struct {
 		name             string
 		bindingName      string
-		getServiceExport func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceExport, error)
+		getServiceExport func(provider *konnectormodels.ProviderInfo, name string) (*v1alpha1.APIServiceExport, error)
 		getCRD           func(name string) (*apiextensionsv1.CustomResourceDefinition, error)
 		expectConditions conditionsapi.Conditions
 	}{
@@ -104,26 +103,26 @@ func newCRD(name string) *apiextensionsv1.CustomResourceDefinition {
 	}
 }
 
-func newGetServiceExport(name string, crd *kubebindv1alpha1.APIServiceExport) func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceExport, error) {
-	return func(provider *konnectormodels.ProviderInfo, n string) (*kubebindv1alpha1.APIServiceExport, error) {
+func newGetServiceExport(name string, crd *v1alpha1.APIServiceExport) func(provider *konnectormodels.ProviderInfo, name string) (*v1alpha1.APIServiceExport, error) {
+	return func(provider *konnectormodels.ProviderInfo, n string) (*v1alpha1.APIServiceExport, error) {
 		if n == name {
 			return crd, nil
 		}
-		return nil, errors.NewNotFound(kubebindv1alpha1.SchemeGroupVersion.WithResource("apiserviceexports").GroupResource(), "not found")
+		return nil, errors.NewNotFound(v1alpha1.SchemeGroupVersion.WithResource("apiserviceexports").GroupResource(), "not found")
 	}
 }
 
-func newServiceExport(name string) *kubebindv1alpha1.APIServiceExport {
-	return &kubebindv1alpha1.APIServiceExport{
+func newServiceExport(name string) *v1alpha1.APIServiceExport {
+	return &v1alpha1.APIServiceExport{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: kubebindv1alpha1.APIServiceExportSpec{},
+		Spec: v1alpha1.APIServiceExportSpec{},
 	}
 }
 
-func newBinding(name string) *kubebindv1alpha1.APIServiceBinding {
-	return &kubebindv1alpha1.APIServiceBinding{
+func newBinding(name string) *v1alpha1.APIServiceBinding {
+	return &v1alpha1.APIServiceBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},

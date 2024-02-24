@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,14 @@ import (
 	"fmt"
 	"time"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
@@ -33,14 +41,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -49,7 +49,7 @@ const (
 
 // NewController returns a new controller for ServiceBindings.
 func NewController(
-	reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool,
+	reconcileServiceBinding func(binding *v1alpha1.APIServiceBinding) bool,
 	consumerConfig *rest.Config,
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister],
 	crdInformer dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister],
@@ -90,21 +90,20 @@ func NewController(
 		providerInfors: providerInfos,
 
 		reconciler: reconciler{
-
 			providerInfos: providerInfos,
 
 			reconcileServiceBinding: reconcileServiceBinding,
 
-			getServiceExport: func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceExport, error) {
+			getServiceExport: func(provider *konnectormodels.ProviderInfo, name string) (*v1alpha1.APIServiceExport, error) {
 				return provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Lister().APIServiceExports(provider.Namespace).Get(name)
 			},
-			getServiceBinding: func(name string) (*kubebindv1alpha1.APIServiceBinding, error) {
+			getServiceBinding: func(name string) (*v1alpha1.APIServiceBinding, error) {
 				return serviceBindingInformer.Lister().Get(name)
 			},
-			getClusterBinding: func(ctx context.Context, provider *konnectormodels.ProviderInfo) (*kubebindv1alpha1.ClusterBinding, error) {
+			getClusterBinding: func(ctx context.Context, provider *konnectormodels.ProviderInfo) (*v1alpha1.ClusterBinding, error) {
 				return provider.BindClient.KubeBindV1alpha1().ClusterBindings(provider.Namespace).Get(ctx, "cluster", metav1.GetOptions{})
 			},
-			updateServiceExportStatus: func(ctx context.Context, export *kubebindv1alpha1.APIServiceExport, clusterID string) (*kubebindv1alpha1.APIServiceExport, error) {
+			updateServiceExportStatus: func(ctx context.Context, export *v1alpha1.APIServiceExport, clusterID string) (*v1alpha1.APIServiceExport, error) {
 				provider, err := konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 				if err != nil {
 					return nil, err
@@ -122,8 +121,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceBinding, *kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceBinding] {
+		commit: committer.NewCommitter[*v1alpha1.APIServiceBinding, *v1alpha1.APIServiceBindingSpec, *v1alpha1.APIServiceBindingStatus](
+			func(ns string) committer.Patcher[*v1alpha1.APIServiceBinding] {
 				return consumerBindClient.KubeBindV1alpha1().APIServiceBindings()
 			},
 		),
@@ -153,8 +152,10 @@ func NewController(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*v1alpha1.APIServiceBindingSpec, *v1alpha1.APIServiceBindingStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 // controller reconciles ServiceBindings with there ServiceExports counterparts.
 type controller struct {
@@ -192,7 +193,7 @@ func (c *controller) enqueueServiceExport(logger klog.Logger, _ interface{}, pro
 	fmt.Println(bindings)
 
 	for _, obj := range bindings {
-		binding := obj.(*kubebindv1alpha1.APIServiceBinding)
+		binding := obj.(*v1alpha1.APIServiceBinding)
 		key, err := cache.MetaNamespaceKeyFunc(binding)
 		if err != nil {
 			runtime.HandleError(err)
@@ -220,7 +221,7 @@ func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
 		exports = append(exports, exps...)
 	}
 	for _, obj := range exports {
-		export := obj.(*kubebindv1alpha1.APIServiceExport)
+		export := obj.(*v1alpha1.APIServiceExport)
 		key := export.Name
 		logger.V(2).Info("queueing APIServiceBinding", "key", key, "reason", "CustomResourceDefinition", "CustomResourceDefinitionKey", name)
 		c.queue.Add(key)

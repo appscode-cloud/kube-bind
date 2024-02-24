@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,15 +19,15 @@ package status
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 	"time"
 
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
 	"go.bytebuilders.dev/kube-bind/pkg/indexers"
 	clusterscoped "go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/cluster-scoped"
 	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,6 +43,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	kmc "kmodules.xyz/client-go/client"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -79,7 +80,7 @@ func NewController(
 	if err != nil {
 		return nil, err
 	}
-	//TODO: provider.dynamic client association is removed. Add it if needed
+	// TODO: provider.dynamic client association is removed. Add it if needed
 
 	dynamicConsumerLister := dynamiclister.New(consumerDynamicInformer.Informer().GetIndexer(), gvr)
 	c := &controller{
@@ -103,15 +104,15 @@ func NewController(
 					return konnectormodels.GetProviderInfoWithClusterID(providerInfos, clusterID)
 				}
 			},
-			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*kubebindv1alpha1.APIServiceNamespace, error) {
+			getServiceNamespace: func(provider *konnectormodels.ProviderInfo, upstreamNamespace string) (*v1alpha1.APIServiceNamespace, error) {
 				sns, err := provider.DynamicServiceNamespaceInformer.Informer().GetIndexer().ByIndex(indexers.ServiceNamespaceByNamespace, upstreamNamespace)
 				if err != nil {
 					return nil, err
 				}
 				if len(sns) == 0 {
-					return nil, errors.NewNotFound(kubebindv1alpha1.SchemeGroupVersion.WithResource("APIServiceNamespace").GroupResource(), upstreamNamespace)
+					return nil, errors.NewNotFound(v1alpha1.SchemeGroupVersion.WithResource("APIServiceNamespace").GroupResource(), upstreamNamespace)
 				}
-				return sns[0].(*kubebindv1alpha1.APIServiceNamespace), nil
+				return sns[0].(*v1alpha1.APIServiceNamespace), nil
 			},
 			getConsumerObject: func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error) {
 				if ns != "" {
@@ -178,7 +179,7 @@ func NewController(
 					Data: providerSecret.Data,
 				}
 
-				//delete backdated secret from consumer
+				// delete backdated secret from consumer
 				oldSecretName, found, err := unstructured.NestedString(downstream.Object, "status", "secretRef", "name")
 				if err != nil {
 					return "", err
@@ -283,7 +284,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 			return
 		}
 		for _, obj := range sns {
-			sns := obj.(*kubebindv1alpha1.APIServiceNamespace)
+			sns := obj.(*v1alpha1.APIServiceNamespace)
 			if sns.Namespace == provider.Namespace {
 				logger.V(2).Info("queueing Unstructured", "key", key)
 				c.queue.Add(provider.ClusterID + "/" + key)
@@ -517,7 +518,7 @@ func (c *controller) removeDownstreamFinalizer(ctx context.Context, obj *unstruc
 	var finalizers []string
 	found := false
 	for _, f := range obj.GetFinalizers() {
-		if f == kubebindv1alpha1.DownstreamFinalizer {
+		if f == v1alpha1.DownstreamFinalizer {
 			found = true
 			continue
 		}

@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,17 +21,17 @@ import (
 	"fmt"
 	"reflect"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	kuberesources "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
+
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	kuberesources "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
 )
 
 type reconciler struct {
-	scope kubebindv1alpha1.Scope
+	scope v1alpha1.Scope
 
 	getNamespace    func(name string) (*corev1.Namespace, error)
 	createNamespace func(ctx context.Context, ns *corev1.Namespace) (*corev1.Namespace, error)
@@ -42,7 +42,7 @@ type reconciler struct {
 	updateRoleBinding func(ctx context.Context, cr *rbacv1.RoleBinding) (*rbacv1.RoleBinding, error)
 }
 
-func (c *reconciler) reconcile(ctx context.Context, sns *kubebindv1alpha1.APIServiceNamespace) error {
+func (c *reconciler) reconcile(ctx context.Context, sns *v1alpha1.APIServiceNamespace) error {
 	var ns *corev1.Namespace
 	nsName := sns.Namespace + "-" + sns.Name
 	if sns.Status.Namespace != "" {
@@ -54,7 +54,7 @@ func (c *reconciler) reconcile(ctx context.Context, sns *kubebindv1alpha1.APISer
 			ObjectMeta: metav1.ObjectMeta{
 				Name: nsName,
 				Annotations: map[string]string{
-					kubebindv1alpha1.APIServiceNamespaceAnnotationKey: sns.Namespace + "/" + sns.Name,
+					v1alpha1.APIServiceNamespaceAnnotationKey: sns.Namespace + "/" + sns.Name,
 				},
 			},
 		}
@@ -63,7 +63,7 @@ func (c *reconciler) reconcile(ctx context.Context, sns *kubebindv1alpha1.APISer
 		}
 	}
 
-	if c.scope == kubebindv1alpha1.NamespacedScope {
+	if c.scope == v1alpha1.NamespacedScope {
 		if err := c.ensureRBACRoleBinding(ctx, nsName, sns); err != nil {
 			return fmt.Errorf("failed to ensure RBAC: %w", err)
 		}
@@ -76,7 +76,7 @@ func (c *reconciler) reconcile(ctx context.Context, sns *kubebindv1alpha1.APISer
 	return nil
 }
 
-func (c *reconciler) ensureRBACRoleBinding(ctx context.Context, ns string, sns *kubebindv1alpha1.APIServiceNamespace) error {
+func (c *reconciler) ensureRBACRoleBinding(ctx context.Context, ns string, sns *v1alpha1.APIServiceNamespace) error {
 	objName := "kube-binder"
 	binding, err := c.getRoleBinding(ns, objName)
 	if err != nil && !errors.IsNotFound(err) {

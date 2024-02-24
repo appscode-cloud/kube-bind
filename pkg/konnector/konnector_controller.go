@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,17 @@ import (
 	"fmt"
 	"time"
 
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/client/informers/externalversions/kubebind/v1alpha1"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/servicebinding"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+
 	corev1 "k8s.io/api/core/v1"
 	crdinformers "k8s.io/apiextensions-apiserver/pkg/client/informers/externalversions/apiextensions/v1"
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
@@ -34,17 +45,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/servicebinding"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 const (
@@ -100,7 +100,6 @@ func New(
 			},
 			providerInfos: make([]*konnectormodels.ProviderInfo, 0),
 			newClusterController: func(providerInfos []*konnectormodels.ProviderInfo, reconcileServiceBinding func(binding *kubebindv1alpha1.APIServiceBinding) bool) (startable, error) {
-
 				for _, provider := range providerInfos {
 					provider.Config = rest.CopyConfig(provider.Config)
 					provider.Config = rest.AddUserAgent(provider.Config, controllerName)
@@ -166,8 +165,10 @@ func New(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*kubebindv1alpha1.APIServiceBindingSpec, *kubebindv1alpha1.APIServiceBindingStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 type GenericController interface {
 	Start(ctx context.Context, numThreads int)

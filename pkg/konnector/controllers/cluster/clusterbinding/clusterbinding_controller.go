@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,8 +22,13 @@ import (
 	"reflect"
 	"time"
 
-	conditionsapi "kmodules.xyz/client-go/api/v1"
-	"kmodules.xyz/client-go/conditions"
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,14 +43,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 const (
@@ -133,8 +132,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.ClusterBinding, *kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.ClusterBinding] {
+		commit: committer.NewCommitter[*v1alpha1.ClusterBinding, *v1alpha1.ClusterBindingSpec, *v1alpha1.ClusterBindingStatus](
+			func(ns string) committer.Patcher[*v1alpha1.ClusterBinding] {
 				providerInfo, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
 				if err != nil {
 					klog.Warningf(err.Error())
@@ -181,11 +180,11 @@ func NewController(
 				c.enqueueServiceExport(logger, obj)
 			},
 			UpdateFunc: func(old, newObj interface{}) {
-				oldExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+				oldExport, ok := old.(*v1alpha1.APIServiceExport)
 				if !ok {
 					return
 				}
-				newExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+				newExport, ok := old.(*v1alpha1.APIServiceExport)
 				if !ok {
 					return
 				}
@@ -221,8 +220,10 @@ func NewController(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*v1alpha1.ClusterBindingSpec, *v1alpha1.ClusterBindingStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 // controller reconciles ClusterBindings on the service provider cluster, including heartbeating.
 type controller struct {
@@ -433,10 +434,10 @@ func (c *controller) process(ctx context.Context, key string) error {
 		errs = append(errs, err)
 
 		// try to update service bindings
-		c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
+		c.updateServiceBindings(ctx, func(binding *v1alpha1.APIServiceBinding) {
 			conditions.MarkFalse(
 				binding,
-				kubebindv1alpha1.APIServiceBindingConditionHeartbeating,
+				v1alpha1.APIServiceBindingConditionHeartbeating,
 				"ClusterBindingUpdateFailed",
 				conditionsapi.ConditionSeverityWarning,
 				"Failed to update service provider ClusterBinding: %v", err,
@@ -444,15 +445,15 @@ func (c *controller) process(ctx context.Context, key string) error {
 		}, consumerSecretRefKey)
 	} else {
 		// try to update service bindings
-		c.updateServiceBindings(ctx, func(binding *kubebindv1alpha1.APIServiceBinding) {
-			conditions.MarkTrue(binding, kubebindv1alpha1.APIServiceBindingConditionHeartbeating)
+		c.updateServiceBindings(ctx, func(binding *v1alpha1.APIServiceBinding) {
+			conditions.MarkTrue(binding, v1alpha1.APIServiceBindingConditionHeartbeating)
 		}, consumerSecretRefKey)
 	}
 
 	return utilerrors.NewAggregate(errs)
 }
 
-func (c *controller) updateServiceBindings(ctx context.Context, update func(*kubebindv1alpha1.APIServiceBinding), consumerSecretRefKey string) {
+func (c *controller) updateServiceBindings(ctx context.Context, update func(*v1alpha1.APIServiceBinding), consumerSecretRefKey string) {
 	logger := klog.FromContext(ctx)
 
 	objs, err := c.serviceBindingInformer.Informer().GetIndexer().ByIndex(indexers.ByServiceBindingKubeconfigSecret, consumerSecretRefKey)
@@ -461,7 +462,7 @@ func (c *controller) updateServiceBindings(ctx context.Context, update func(*kub
 		return
 	}
 	for _, obj := range objs {
-		binding := obj.(*kubebindv1alpha1.APIServiceBinding)
+		binding := obj.(*v1alpha1.APIServiceBinding)
 		orig := binding
 		binding = binding.DeepCopy()
 		update(binding)

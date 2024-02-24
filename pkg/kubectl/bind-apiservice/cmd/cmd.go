@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,19 +19,17 @@ package cmd
 import (
 	"fmt"
 
+	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind-apiservice/plugin"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/exec"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	logsv1 "k8s.io/component-base/logs/api/v1"
-
-	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind-apiservice/plugin"
 )
 
-var (
-	bindAPIServiceExampleUses = `
+var bindAPIServiceExampleUses = `
 	# bind to a remote API service. Use kubectl bind to create the APIServiceExportRequest interactively. 
 	%[1]s apiservice --remote-kubeconfig file -f apiservice-export-request.yaml
 
@@ -41,7 +39,6 @@ var (
 	# bind to a API service directly without any remote agent or service provider.
 	%[1]s apiservice --remote-kubeconfig file -n remote-namespace resources.group/v1
 	`
-)
 
 func New(streams genericclioptions.IOStreams) (*cobra.Command, error) {
 	opts := plugin.NewBindAPIServiceOptions(streams)
