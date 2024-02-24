@@ -217,6 +217,9 @@ github.com/kcp-dev/kcp/pkg/apis/third_party/conditions/util/conditions
 # github.com/kcp-dev/logicalcluster/v3 v3.0.1
 ## explicit; go 1.18
 github.com/kcp-dev/logicalcluster/v3
+# github.com/klauspost/cpuid/v2 v2.0.9
+## explicit; go 1.13
+github.com/klauspost/cpuid/v2
 # github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de
 ## explicit
 github.com/liggitt/tabwriter
@@ -348,6 +351,9 @@ github.com/yudai/gojsondiff/formatter
 # github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82
 ## explicit
 github.com/yudai/golcs
+# github.com/zeebo/xxh3 v1.0.2
+## explicit; go 1.17
+github.com/zeebo/xxh3
 # go.etcd.io/etcd/api/v3 v3.5.10
 ## explicit; go 1.20
 go.etcd.io/etcd/api/v3/authpb
@@ -1385,7 +1391,7 @@ k8s.io/utils/pointer
 k8s.io/utils/ptr
 k8s.io/utils/strings/slices
 k8s.io/utils/trace
-# kmodules.xyz/client-go v0.29.6
+# kmodules.xyz/client-go v0.29.9
 ## explicit; go 1.21.5
 kmodules.xyz/client-go
 kmodules.xyz/client-go/api/v1
