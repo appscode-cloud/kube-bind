@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,21 +24,20 @@ import (
 	"testing"
 	"time"
 
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	backend "go.bytebuilders.dev/kube-bind/contrib/example-backend"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/options"
+
 	dexapi "github.com/dexidp/dex/api/v2"
 	"github.com/gorilla/securecookie"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	grpcinsecure "google.golang.org/grpc/credentials/insecure"
-
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-
-	backend "go.bytebuilders.dev/kube-bind/contrib/example-backend"
-	"go.bytebuilders.dev/kube-bind/contrib/example-backend/options"
-	"go.bytebuilders.dev/kube-bind/deploy/crd"
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+	"kmodules.xyz/client-go/apiextensions"
 )
 
 func StartBackend(t *testing.T, clientConfig *rest.Config, args ...string) (net.Addr, *backend.Server) {
@@ -61,13 +60,12 @@ func StartBackendWithoutDefaultArgs(t *testing.T, clientConfig *rest.Config, arg
 
 	crdClient, err := apiextensionsclient.NewForConfig(clientConfig)
 	require.NoError(t, err)
-	err = crd.Create(ctx,
-		crdClient.ApiextensionsV1().CustomResourceDefinitions(),
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "clusterbindings"},
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiserviceexports"},
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiservicenamespaces"},
-		metav1.GroupResource{Group: kubebindv1alpha1.GroupName, Resource: "apiserviceexportrequests"},
-	)
+	err = apiextensions.RegisterCRDs(crdClient, []*apiextensions.CustomResourceDefinition{
+		kubebindv1alpha1.ClusterBinding{}.CustomResourceDefinition(),
+		kubebindv1alpha1.APIServiceExport{}.CustomResourceDefinition(),
+		kubebindv1alpha1.APIServiceNamespace{}.CustomResourceDefinition(),
+		kubebindv1alpha1.APIServiceExportRequest{}.CustomResourceDefinition(),
+	})
 	require.NoError(t, err)
 
 	fs := pflag.NewFlagSet("example-backend", pflag.ContinueOnError)

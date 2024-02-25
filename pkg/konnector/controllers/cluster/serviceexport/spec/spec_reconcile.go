@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,19 +23,19 @@ import (
 	"reflect"
 	"time"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 )
 
 type reconciler struct {
 	getProviderInfo        func(obj *unstructured.Unstructured) (*konnectormodels.ProviderInfo, error)
-	getServiceNamespace    func(provider *konnectormodels.ProviderInfo, name string) (*kubebindv1alpha1.APIServiceNamespace, error)
-	createServiceNamespace func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *kubebindv1alpha1.APIServiceNamespace) (*kubebindv1alpha1.APIServiceNamespace, error)
+	getServiceNamespace    func(provider *konnectormodels.ProviderInfo, name string) (*v1alpha1.APIServiceNamespace, error)
+	createServiceNamespace func(ctx context.Context, provider *konnectormodels.ProviderInfo, sn *v1alpha1.APIServiceNamespace) (*v1alpha1.APIServiceNamespace, error)
 
 	getProviderObject    func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error)
 	createProviderObject func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
@@ -66,7 +66,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 			return err
 		} else if errors.IsNotFound(err) {
 			logger.V(1).Info("creating APIServiceNamespace", "namespace", ns)
-			sn, err = r.createServiceNamespace(ctx, provider, &kubebindv1alpha1.APIServiceNamespace{
+			sn, err = r.createServiceNamespace(ctx, provider, &v1alpha1.APIServiceNamespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      ns,
 					Namespace: provider.Namespace,
@@ -199,7 +199,7 @@ func (r *reconciler) ensureDownstreamFinalizer(ctx context.Context, obj *unstruc
 	// check that downstream has our finalizer
 	found := false
 	for _, f := range obj.GetFinalizers() {
-		if f == kubebindv1alpha1.DownstreamFinalizer {
+		if f == v1alpha1.DownstreamFinalizer {
 			found = true
 			break
 		}
@@ -208,7 +208,7 @@ func (r *reconciler) ensureDownstreamFinalizer(ctx context.Context, obj *unstruc
 	if !found {
 		logger.V(2).Info("adding finalizer to downstream object")
 		obj = obj.DeepCopy()
-		obj.SetFinalizers(append(obj.GetFinalizers(), kubebindv1alpha1.DownstreamFinalizer))
+		obj.SetFinalizers(append(obj.GetFinalizers(), v1alpha1.DownstreamFinalizer))
 		var err error
 		if obj, err = r.updateConsumerObject(ctx, obj); err != nil {
 			return nil, err
@@ -224,7 +224,7 @@ func (r *reconciler) removeDownstreamFinalizer(ctx context.Context, obj *unstruc
 	var finalizers []string
 	found := false
 	for _, f := range obj.GetFinalizers() {
-		if f == kubebindv1alpha1.DownstreamFinalizer {
+		if f == v1alpha1.DownstreamFinalizer {
 			found = true
 			continue
 		}

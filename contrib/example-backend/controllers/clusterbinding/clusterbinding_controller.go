@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,12 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/client/informers/externalversions/kubebind/v1alpha1"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
 
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -38,12 +44,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
 )
 
 const (
@@ -53,7 +53,7 @@ const (
 // NewController returns a new controller to reconcile ClusterBindings.
 func NewController(
 	config *rest.Config,
-	scope kubebindv1alpha1.Scope,
+	scope v1alpha1.Scope,
 	clusterBindingInformer bindinformers.ClusterBindingInformer,
 	serviceExportInformer bindinformers.APIServiceExportInformer,
 	clusterRoleInformer rbacinformers.ClusterRoleInformer,
@@ -99,7 +99,7 @@ func NewController(
 
 		reconciler: reconciler{
 			scope: scope,
-			listServiceExports: func(ns string) ([]*kubebindv1alpha1.APIServiceExport, error) {
+			listServiceExports: func(ns string) ([]*v1alpha1.APIServiceExport, error) {
 				return serviceExportInformer.Lister().APIServiceExports(ns).List(labels.Everything())
 			},
 			getClusterRole: func(name string) (*rbacv1.ClusterRole, error) {
@@ -137,8 +137,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.ClusterBinding, *kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.ClusterBinding] {
+		commit: committer.NewCommitter[*v1alpha1.ClusterBinding, *v1alpha1.ClusterBindingSpec, *v1alpha1.ClusterBindingStatus](
+			func(ns string) committer.Patcher[*v1alpha1.ClusterBinding] {
 				return bindClient.KubeBindV1alpha1().ClusterBindings(ns)
 			},
 		),
@@ -177,8 +177,10 @@ func NewController(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.ClusterBindingSpec, *kubebindv1alpha1.ClusterBindingStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*v1alpha1.ClusterBindingSpec, *v1alpha1.ClusterBindingStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 // Controller reconciles ClusterBinding conditions.
 type Controller struct {

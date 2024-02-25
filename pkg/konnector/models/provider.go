@@ -1,19 +1,35 @@
+/*
+Copyright AppsCode Inc. and Contributors
+
+Licensed under the AppsCode Community License 1.0.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package models
 
 import (
 	"fmt"
+
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/client/informers/externalversions"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	dynamicclient "k8s.io/client-go/dynamic"
 	kubernetesinformers "k8s.io/client-go/informers"
 	kubernetesclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport/multinsinformer"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
 )
 
 type ProviderInfo struct {

@@ -1,11 +1,11 @@
 /*
-Copyright 2021 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -149,8 +149,10 @@ func CreateResourceFromFS(ctx context.Context, client dynamic.Interface, mapper 
 	return apimachineryerrors.NewAggregate(errs)
 }
 
-const annotationCreateOnlyKey = "bootstrap.kube-bind.appscode.com/create-only"
-const annotationBattery = "bootstrap.kube-bind.appscode.com/battery"
+const (
+	annotationCreateOnlyKey = "bootstrap.kube-bind.appscode.com/create-only"
+	annotationBattery       = "bootstrap.kube-bind.appscode.com/battery"
+)
 
 func createResourceFromFS(ctx context.Context, client dynamic.Interface, mapper meta.RESTMapper, raw []byte, batteriesIncluded sets.Set[string]) error {
 	type Input struct {

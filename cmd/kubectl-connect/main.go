@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,25 +20,24 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/pflag"
-
-	"k8s.io/cli-runtime/pkg/genericclioptions"
-
 	apiservicecmd "go.bytebuilders.dev/kube-bind/pkg/kubectl/bind-apiservice/cmd"
 	bindcmd "go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/cmd"
+
+	"github.com/spf13/pflag"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
 func main() {
-	flags := pflag.NewFlagSet("kubectl-bind", pflag.ExitOnError)
+	flags := pflag.NewFlagSet("kubectl-connect", pflag.ExitOnError)
 	pflag.CommandLine = flags
 
-	bindCmd, err := bindcmd.New(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
+	bindCmd, err := bindcmd.New(genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v", err)
 		os.Exit(1)
 	}
 
-	apiserviceCmd, err := apiservicecmd.New(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
+	apiserviceCmd, err := apiservicecmd.New(genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v", err)
 		os.Exit(1)

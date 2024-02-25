@@ -1,4 +1,5 @@
-# Copyright 2021 The Kube Bind Authors.
+
+# Copyright AppsCode Inc. and Contributors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,259 +13,505 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# We need bash for some conditional logic below.
-SHELL := /usr/bin/env bash -e
+SHELL=/bin/bash -o pipefail
 
-GO_INSTALL = ./hack/go-install.sh
+PRODUCT_OWNER_NAME := appscode
+PRODUCT_NAME       := kube-bind
+ENFORCE_LICENSE    ?=
 
-TOOLS_DIR=hack/tools
-TOOLS_GOBIN_DIR := $(abspath $(TOOLS_DIR))
-GOBIN_DIR=$(abspath ./bin )
-PATH := $(GOBIN_DIR):$(TOOLS_GOBIN_DIR):$(PATH)
-TMPDIR := $(shell mktemp -d)
+GO_PKG   := go.bytebuilders.dev
+REPO     := $(notdir $(shell pwd))
+BIN      := kubectl-connect
+COMPRESS ?= no
 
-# Detect the path used for the install target
-ifeq (,$(shell go env GOBIN))
-INSTALL_GOBIN=$(shell go env GOPATH)/bin
+CRD_OPTIONS          ?= "crd:crdVersions={v1},allowDangerousTypes=true,generateEmbeddedObjectMeta=true"
+CODE_GENERATOR_IMAGE ?= ghcr.io/appscode/gengo:release-1.29
+API_GROUPS           ?= kubebind:v1alpha1
+
+# Where to push the docker image.
+REGISTRY ?= ghcr.io/appscode
+SRC_REG  ?=
+
+# This version-strategy uses git tags to set the version string
+git_branch       := $(shell git rev-parse --abbrev-ref HEAD)
+git_tag          := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
+commit_hash      := $(shell git rev-parse --verify HEAD)
+commit_timestamp := $(shell date --date="@$$(git show -s --format=%ct)" --utc +%FT%T)
+
+VERSION          := $(shell git describe --tags --always --dirty)
+version_strategy := commit_hash
+ifdef git_tag
+	VERSION := $(git_tag)
+	version_strategy := tag
 else
-INSTALL_GOBIN=$(shell go env GOBIN)
+	ifeq (,$(findstring $(git_branch),master HEAD))
+		ifneq (,$(patsubst release-%,,$(git_branch)))
+			VERSION := $(git_branch)
+			version_strategy := branch
+		endif
+	endif
 endif
 
-CONTROLLER_GEN_VER := v0.10.0
-CONTROLLER_GEN_BIN := controller-gen
-CONTROLLER_GEN := $(TOOLS_DIR)/$(CONTROLLER_GEN_BIN)-$(CONTROLLER_GEN_VER)
-export CONTROLLER_GEN # so hack scripts can use it
+###
+### These variables should not need tweaking.
+###
 
-YAML_PATCH_VER ?= v0.0.11
-YAML_PATCH_BIN := yaml-patch
-YAML_PATCH := $(TOOLS_DIR)/$(YAML_PATCH_BIN)-$(YAML_PATCH_VER)
-export YAML_PATCH # so hack scripts can use it
+SRC_PKGS := apis client cmd contrib deploy docs examples guides hack pkg test # directories which hold app source excluding tests (not vendored)
+SRC_DIRS := $(SRC_PKGS) # directories which hold app source (not vendored)
 
-OPENSHIFT_GOIMPORTS_VER := c72f1dc2e3aacfa00aece3391d938c9bc734e791
-OPENSHIFT_GOIMPORTS_BIN := openshift-goimports
-OPENSHIFT_GOIMPORTS := $(TOOLS_DIR)/$(OPENSHIFT_GOIMPORTS_BIN)-$(OPENSHIFT_GOIMPORTS_VER)
-export OPENSHIFT_GOIMPORTS # so hack scripts can use it
+DOCKER_PLATFORMS := linux/amd64 linux/arm64
+BIN_PLATFORMS    := $(DOCKER_PLATFORMS)
 
-GOLANGCI_LINT_VER := v1.49.0
-GOLANGCI_LINT_BIN := golangci-lint
-GOLANGCI_LINT := $(TOOLS_GOBIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
+# Used internally.  Users should pass GOOS and/or GOARCH.
+OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
+ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
-STATICCHECK_VER := 2022.1
-STATICCHECK_BIN := staticcheck
-STATICCHECK := $(TOOLS_GOBIN_DIR)/$(STATICCHECK_BIN)-$(STATICCHECK_VER)
+# BASEIMAGE_PROD ?= gcr.io/distroless/static-debian12
+BASEIMAGE_PROD   ?= alpine
+BASEIMAGE_DBG    ?= debian:bookworm
 
-GOTESTSUM_VER := v1.8.1
-GOTESTSUM_BIN := gotestsum
-GOTESTSUM := $(abspath $(TOOLS_DIR))/$(GOTESTSUM_BIN)-$(GOTESTSUM_VER)
+IMAGE            := $(REGISTRY)/$(BIN)
+VERSION_PROD     := $(VERSION)
+VERSION_DBG      := $(VERSION)-dbg
+TAG              := $(VERSION)_$(OS)_$(ARCH)
+TAG_PROD         := $(TAG)
+TAG_DBG          := $(VERSION)-dbg_$(OS)_$(ARCH)
 
-LOGCHECK_VER := v0.2.0
-LOGCHECK_BIN := logcheck
-LOGCHECK := $(TOOLS_GOBIN_DIR)/$(LOGCHECK_BIN)-$(LOGCHECK_VER)
-export LOGCHECK # so hack scripts can use it
+GO_VERSION       ?= 1.21
+BUILD_IMAGE      ?= ghcr.io/appscode/golang-dev:$(GO_VERSION)
+CHART_TEST_IMAGE ?= quay.io/helmpack/chart-testing:v3.5.1
 
-KCP_VER := v0.11.0
-KCP_BIN := kcp
-KCP := $(TOOLS_GOBIN_DIR)/$(KCP_BIN)-$(KCP_VER)
+OUTBIN = bin/$(BIN)-$(OS)-$(ARCH)
+ifeq ($(OS),windows)
+  OUTBIN := bin/$(BIN)-$(OS)-$(ARCH).exe
+  BIN := $(BIN).exe
+endif
 
-DEX_VER := v2.35.2
-DEX_BIN := dex
-DEX := $(TOOLS_GOBIN_DIR)/$(DEX_BIN)-$(DEX_VER)
+# Directories that we need created to build/test.
+BUILD_DIRS  := bin/$(OS)_$(ARCH)     \
+               .go/bin/$(OS)_$(ARCH) \
+               .go/cache             \
+               hack/config           \
+               $(HOME)/.credentials  \
+               $(HOME)/.kube
 
-ARCH := $(shell go env GOARCH)
-OS := $(shell go env GOOS)
+DOCKERFILE_PROD  = Dockerfile.in
+DOCKERFILE_DBG   = Dockerfile.dbg
 
-KUBE_MAJOR_VERSION := 1
-KUBE_MINOR_VERSION := $(shell go mod edit -json | jq '.Require[] | select(.Path == "k8s.io/client-go") | .Version' --raw-output | sed "s/v[0-9]*\.\([0-9]*\).*/\1/")
-GIT_COMMIT := $(shell git rev-parse --short HEAD || echo 'local')
-GIT_DIRTY := $(shell git diff --quiet && echo 'clean' || echo 'dirty')
-GIT_VERSION := $(shell go mod edit -json | jq '.Require[] | select(.Path == "k8s.io/client-go") | .Version' --raw-output | sed 's/v0/v1/')+kube-bind-$(shell git describe --tags --match='v*' --abbrev=14 "$(GIT_COMMIT)^{commit}" 2>/dev/null || echo v0.0.0-$(GIT_COMMIT))
-BUILD_DATE := $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS := \
-	-X k8s.io/client-go/pkg/version.gitCommit=${GIT_COMMIT} \
-	-X k8s.io/client-go/pkg/version.gitTreeState=${GIT_DIRTY} \
-	-X k8s.io/client-go/pkg/version.gitVersion=${GIT_VERSION} \
-	-X k8s.io/client-go/pkg/version.gitMajor=${KUBE_MAJOR_VERSION} \
-	-X k8s.io/client-go/pkg/version.gitMinor=${KUBE_MINOR_VERSION} \
-	-X k8s.io/client-go/pkg/version.buildDate=${BUILD_DATE} \
-	\
-	-X k8s.io/component-base/version.gitCommit=${GIT_COMMIT} \
-	-X k8s.io/component-base/version.gitTreeState=${GIT_DIRTY} \
-	-X k8s.io/component-base/version.gitVersion=${GIT_VERSION} \
-	-X k8s.io/component-base/version.gitMajor=${KUBE_MAJOR_VERSION} \
-	-X k8s.io/component-base/version.gitMinor=${KUBE_MINOR_VERSION} \
-	-X k8s.io/component-base/version.buildDate=${BUILD_DATE}
-all: build
-.PHONY: all
+DOCKER_REPO_ROOT := /go/src/$(GO_PKG)/$(REPO)
 
-ldflags:
-	@echo $(LDFLAGS)
+# If you want to build all binaries, see the 'all-build' rule.
+# If you want to build all containers, see the 'all-container' rule.
+# If you want to build AND push all containers, see the 'all-push' rule.
+all: fmt build
 
-.PHONY: require-%
-require-%:
-	@if ! command -v $* 1> /dev/null 2>&1; then echo "$* not found in \$$PATH"; exit 1; fi
+# For the following OS/ARCH expansions, we transform OS/ARCH into OS_ARCH
+# because make pattern rules don't match with embedded '/' characters.
 
-build: WHAT ?= ./cmd/...
-build: require-jq require-go require-git verify-go-versions ## Build the project
-	GOOS=$(OS) GOARCH=$(ARCH) go build $(BUILDFLAGS) -ldflags="$(LDFLAGS)" -o bin/ $(WHAT)
-.PHONY: build
+build-%:
+	@$(MAKE) build                        \
+	    --no-print-directory              \
+	    GOOS=$(firstword $(subst _, ,$*)) \
+	    GOARCH=$(lastword $(subst _, ,$*))
 
-.PHONY: build-all
-build-all:
-	GOOS=$(OS) GOARCH=$(ARCH) $(MAKE) build WHAT=./cmd/...
+container-%:
+	@$(MAKE) container                    \
+	    --no-print-directory              \
+	    GOOS=$(firstword $(subst _, ,$*)) \
+	    GOARCH=$(lastword $(subst _, ,$*))
 
-install: WHAT ?= ./cmd/...
-install: ## install binaries to GOBIN
-	GOOS=$(OS) GOARCH=$(ARCH) go install -ldflags="$(LDFLAGS)" $(WHAT)
-.PHONY: install
+push-%:
+	@$(MAKE) push                         \
+	    --no-print-directory              \
+	    GOOS=$(firstword $(subst _, ,$*)) \
+	    GOARCH=$(lastword $(subst _, ,$*))
 
-$(GOLANGCI_LINT):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) github.com/golangci/golangci-lint/cmd/golangci-lint $(GOLANGCI_LINT_BIN) $(GOLANGCI_LINT_VER)
+all-build: $(addprefix build-, $(subst /,_, $(BIN_PLATFORMS)))
+ifeq ($(COMPRESS),yes)
+	@cd bin; \
+	sha256sum $(patsubst $(BIN)-windows-%.tar.gz,$(BIN)-windows-%.zip, $(addsuffix .tar.gz, $(addprefix $(BIN)-, $(subst /,-, $(BIN_PLATFORMS))))) > $(BIN)-checksums.txt
+endif
 
-$(STATICCHECK):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) honnef.co/go/tools/cmd/staticcheck $(STATICCHECK_BIN) $(STATICCHECK_VER)
+all-container: $(addprefix container-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
-$(LOGCHECK):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) sigs.k8s.io/logtools/logcheck $(LOGCHECK_BIN) $(LOGCHECK_VER)
+all-push: $(addprefix push-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
-lint: $(GOLANGCI_LINT) $(STATICCHECK) $(LOGCHECK) ## Run linters
-	$(GOLANGCI_LINT) run --timeout=10m --skip-dirs pkg/client ./...
-	$(STATICCHECK) -checks ST1019,ST1005 ./...
-.PHONY: lint
+version:
+	@echo version=$(VERSION)
+	@echo version_strategy=$(version_strategy)
+	@echo git_tag=$(git_tag)
+	@echo git_branch=$(git_branch)
+	@echo commit_hash=$(commit_hash)
+	@echo commit_timestamp=$(commit_timestamp)
 
-vendor: ## Vendor the dependencies
-	go mod tidy
-	go mod vendor
-.PHONY: vendor
+# Generate code for Kubernetes types
+.PHONY: clientset
+clientset:
+	@docker run --rm                                            \
+		-v /tmp:/.cache                                           \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                            \
+		-w $(DOCKER_REPO_ROOT)                                    \
+		--env HTTP_PROXY=$(HTTP_PROXY)                            \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                          \
+		$(CODE_GENERATOR_IMAGE)                                   \
+		/go/src/k8s.io/code-generator/generate-groups.sh          \
+			"client,deepcopy,informer,lister"                       \
+			$(GO_PKG)/$(REPO)/client                                \
+			$(GO_PKG)/$(REPO)/apis                                  \
+			"$(API_GROUPS)"                                         \
+			--go-header-file "./hack/license/go.txt"
 
-tools: $(GOLANGCI_LINT) $(CONTROLLER_GEN) $(YAML_PATCH) $(GOTESTSUM) $(OPENSHIFT_GOIMPORTS)
-.PHONY: tools
+# Generate openapi schema
+.PHONY: openapi
+openapi: $(addprefix openapi-, $(subst :,_, $(API_GROUPS)))
+openapi-%:
+	@echo "Generating openapi schema for $(subst _,/,$*)"
+	@mkdir -p .config/api-rules
+	@docker run --rm                                     \
+		-u $$(id -u):$$(id -g)                           \
+		-v /tmp:/.cache                                  \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                   \
+		-w $(DOCKER_REPO_ROOT)                           \
+		--env HTTP_PROXY=$(HTTP_PROXY)                   \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                 \
+		$(CODE_GENERATOR_IMAGE)                          \
+		openapi-gen                                      \
+			--v 1 --logtostderr                          \
+			--go-header-file "./hack/license/go.txt" \
+			--input-dirs "$(GO_PKG)/$(REPO)/apis/$(subst _,/,$*),k8s.io/apimachinery/pkg/apis/meta/v1,k8s.io/apimachinery/pkg/api/resource,k8s.io/apimachinery/pkg/runtime,k8s.io/apimachinery/pkg/util/intstr,k8s.io/apimachinery/pkg/version,k8s.io/api/core/v1,k8s.io/api/apps/v1,k8s.io/api/rbac/v1,kmodules.xyz/client-go/api/v1" \
+			--output-package "$(GO_PKG)/$(REPO)/apis/$(subst _,/,$*)" \
+			--report-filename .config/api-rules/violation_exceptions.list
 
-$(CONTROLLER_GEN):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) sigs.k8s.io/controller-tools/cmd/controller-gen $(CONTROLLER_GEN_BIN) $(CONTROLLER_GEN_VER)
+# Generate CRD manifests
+.PHONY: gen-crds
+gen-crds:
+	@echo "Generating CRD manifests"
+	@docker run --rm	                    \
+		-u $$(id -u):$$(id -g)              \
+		-v /tmp:/.cache                     \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)      \
+		-w $(DOCKER_REPO_ROOT)              \
+	    --env HTTP_PROXY=$(HTTP_PROXY)      \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)    \
+		$(CODE_GENERATOR_IMAGE)             \
+		controller-gen                      \
+			$(CRD_OPTIONS)                  \
+			paths="./apis/..."              \
+			output:crd:artifacts:config=crds
 
-$(YAML_PATCH):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) github.com/pivotal-cf/yaml-patch/cmd/yaml-patch $(YAML_PATCH_BIN) $(YAML_PATCH_VER)
+.PHONY: manifests
+manifests: gen-crds
 
-$(GOTESTSUM):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) gotest.tools/gotestsum $(GOTESTSUM_BIN) $(GOTESTSUM_VER)
+.PHONY: gen
+gen: clientset manifests # openapi
 
-codegen: $(CONTROLLER_GEN) $(YAML_PATCH) ## Run the codegenerators
-	go mod download
-	./hack/update-codegen.sh
-	$(MAKE) imports
-.PHONY: codegen
+fmt: $(BUILD_DIRS)
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    $(BUILD_IMAGE)                                          \
+	    /bin/bash -c "                                          \
+	        REPO_PKG=$(GO_PKG)                                  \
+	        ./hack/fmt.sh $(SRC_DIRS)                           \
+	    "
 
-# Note, running this locally if you have any modified files, even those that are not generated,
-# will result in an error. This target is mostly for CI jobs.
-.PHONY: verify-codegen
-verify-codegen:
-	if [[ -n "${GITHUB_WORKSPACE}" ]]; then \
-		mkdir -p $$(go env GOPATH)/src/github.com/kube-bind; \
-		ln -s ${GITHUB_WORKSPACE} $$(go env GOPATH)/src/go.bytebuilders.dev/kube-bind; \
+build: $(OUTBIN)
+
+# The following structure defeats Go's (intentional) behavior to always touch
+# result files, even if they have not changed.  This will still run `go` but
+# will not trigger further work if nothing has actually changed.
+
+$(OUTBIN): .go/$(OUTBIN).stamp
+	@true
+
+# This will build the binary under ./.go and update the real binary iff needed.
+.PHONY: .go/$(OUTBIN).stamp
+.go/$(OUTBIN).stamp: $(BUILD_DIRS)
+	@echo "making $(OUTBIN)"
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    $(BUILD_IMAGE)                                          \
+	    /bin/bash -c "                                          \
+	        PRODUCT_OWNER_NAME=$(PRODUCT_OWNER_NAME)            \
+	        PRODUCT_NAME=$(PRODUCT_NAME)                        \
+	        ENFORCE_LICENSE=$(ENFORCE_LICENSE)                  \
+	        ARCH=$(ARCH)                                        \
+	        OS=$(OS)                                            \
+	        VERSION=$(VERSION)                                  \
+	        version_strategy=$(version_strategy)                \
+	        git_branch=$(git_branch)                            \
+	        git_tag=$(git_tag)                                  \
+	        commit_hash=$(commit_hash)                          \
+	        commit_timestamp=$(commit_timestamp)                \
+	        ./hack/build.sh                                     \
+	    "
+	@if ! cmp -s .go/bin/$(OS)_$(ARCH)/$(BIN) $(OUTBIN); then   \
+	    mv .go/bin/$(OS)_$(ARCH)/$(BIN) $(OUTBIN);              \
+	    date >$@;                                               \
 	fi
+ifeq ($(COMPRESS),yes)
+ifeq ($(OS),windows)
+	@echo "compressing $(OUTBIN)";                               \
+	cd bin;                                                      \
+	zip -j $(subst .exe,,$(BIN))-$(OS)-$(ARCH).zip $(subst .exe,,$(BIN))-$(OS)-$(ARCH).exe ../LICENSE.md
+else
+	@echo "compressing $(OUTBIN)";                               \
+	cd bin;                                                      \
+	tar -czvf $(BIN)-$(OS)-$(ARCH).tar.gz $(BIN)-$(OS)-$(ARCH) ../LICENSE.md
+endif
+endif
+	@echo
 
-	$(MAKE) codegen
+# Used to track state in hidden files.
+DOTFILE_IMAGE    = $(subst /,_,$(IMAGE))-$(TAG)
 
-	if ! git diff --quiet HEAD; then \
-		git diff; \
-		echo "You need to run 'make codegen' to update generated files and commit them"; \
-		exit 1; \
-	fi
-
-$(OPENSHIFT_GOIMPORTS):
-	GOBIN=$(TOOLS_GOBIN_DIR) $(GO_INSTALL) github.com/openshift-eng/openshift-goimports $(OPENSHIFT_GOIMPORTS_BIN) $(OPENSHIFT_GOIMPORTS_VER)
-
-.PHONY: imports
-imports: $(OPENSHIFT_GOIMPORTS)
-	$(OPENSHIFT_GOIMPORTS) -m go.bytebuilders.dev/kube-bind
-
-$(TOOLS_DIR)/verify_boilerplate.py:
-	mkdir -p $(TOOLS_DIR)
-	curl --fail --retry 3 -L -o $(TOOLS_DIR)/verify_boilerplate.py https://raw.githubusercontent.com/kubernetes/repo-infra/master/hack/verify_boilerplate.py
-	chmod +x $(TOOLS_DIR)/verify_boilerplate.py
-
-.PHONY: verify-boilerplate
-verify-boilerplate: $(TOOLS_DIR)/verify_boilerplate.py
-	$(TOOLS_DIR)/verify_boilerplate.py --boilerplate-dir=hack/boilerplate --skip dex
-
-ifdef ARTIFACT_DIR
-GOTESTSUM_ARGS += --junitfile=$(ARTIFACT_DIR)/junit.xml
+container: bin/.container-$(DOTFILE_IMAGE)-PROD bin/.container-$(DOTFILE_IMAGE)-DBG
+ifeq (,$(SRC_REG))
+bin/.container-$(DOTFILE_IMAGE)-%: bin/$(BIN)-$(OS)-$(ARCH) $(DOCKERFILE_%)
+	@echo "container: $(IMAGE):$(TAG_$*)"
+	@sed                                    \
+		-e 's|{ARG_BIN}|$(BIN)|g'           \
+		-e 's|{ARG_ARCH}|$(ARCH)|g'         \
+		-e 's|{ARG_OS}|$(OS)|g'             \
+		-e 's|{ARG_FROM}|$(BASEIMAGE_$*)|g' \
+		$(DOCKERFILE_$*) > bin/.dockerfile-$*-$(OS)_$(ARCH)
+	@docker buildx build --platform $(OS)/$(ARCH) --load --pull -t $(IMAGE):$(TAG_$*) -f bin/.dockerfile-$*-$(OS)_$(ARCH) .
+	@docker images -q $(IMAGE):$(TAG_$*) > $@
+	@echo
+else
+bin/.container-$(DOTFILE_IMAGE)-%:
+	@echo "container: $(IMAGE):$(TAG_$*)"
+	@docker tag $(SRC_REG)/$(BIN):$(TAG_$*) $(IMAGE):$(TAG_$*)
+	@echo
 endif
 
-GO_TEST = go test
-ifdef USE_GOTESTSUM
-GO_TEST = $(GOTESTSUM) $(GOTESTSUM_ARGS) --
-endif
+push: bin/.push-$(DOTFILE_IMAGE)-PROD bin/.push-$(DOTFILE_IMAGE)-DBG
+bin/.push-$(DOTFILE_IMAGE)-%: bin/.container-$(DOTFILE_IMAGE)-%
+	@docker push $(IMAGE):$(TAG_$*)
+	@echo "pushed: $(IMAGE):$(TAG_$*)"
+	@echo
 
-COUNT ?= 1
-E2E_PARALLELISM ?= 1
-
-dex:
-		git clone https://github.com/dexidp/dex.git
-dex/bin/dex: dex
-		cd dex
-		make
-
-$(DEX):
-	mkdir -p $(TOOLS_DIR)
-	git clone --branch $(DEX_VER) --depth 1 https://github.com/dexidp/dex $(TOOLS_DIR)/dex-clone-$(DEX_VER)
-	cd $(TOOLS_DIR)/dex-clone-$(DEX_VER) && make build
-	cp -a $(TOOLS_DIR)/dex-clone-$(DEX_VER)/bin/dex $(DEX)
-
-$(KCP):
-	mkdir -p $(TOOLS_DIR)
-	curl --fail --retry 3 -L "https://github.com/kcp-dev/kcp/releases/download/$(KCP_VER)/kcp_$(KCP_VER:v%=%)_$(OS)_$(ARCH).tar.gz" | \
-	tar xz -C "$(TOOLS_DIR)" --strip-components="1" bin/kcp
-	mv $(TOOLS_DIR)/kcp $(KCP)
-
-.PHONY: test-e2e
-ifdef USE_GOTESTSUM
-test-e2e: $(GOTESTSUM)
-endif
-test-e2e: TEST_ARGS ?=
-test-e2e: WORK_DIR ?= .
-test-e2e: WHAT ?= ./test/e2e...
-test-e2e: $(KCP) $(DEX) build-all
-	mkdir .kcp
-	$(DEX) serve hack/dex-config-dev.yaml 2>&1 & DEX_PID=$$!; \
-	$(KCP) start &>.kcp/kcp.log & KCP_PID=$$!; \
-	trap 'kill -TERM $$DEX_PID $$KCP_PID; rm -rf .kcp' TERM INT EXIT && \
-	echo "Waiting for kcp to be ready (check .kcp/kcp.log)." && while ! KUBECONFIG=.kcp/admin.kubeconfig kubectl get --raw /readyz &>/dev/null; do sleep 1; echo -n "."; done && echo && \
-	KUBECONFIG=$$PWD/.kcp/admin.kubeconfig GOOS=$(OS) GOARCH=$(ARCH) $(GO_TEST) -race -count $(COUNT) -p $(E2E_PARALLELISM) -parallel $(E2E_PARALLELISM) $(WHAT) $(TEST_ARGS)
+.PHONY: docker-manifest
+docker-manifest: docker-manifest-PROD docker-manifest-DBG
+docker-manifest-%:
+	docker manifest create -a $(IMAGE):$(VERSION_$*) $(foreach PLATFORM,$(DOCKER_PLATFORMS),$(IMAGE):$(VERSION_$*)_$(subst /,_,$(PLATFORM)))
+	docker manifest push $(IMAGE):$(VERSION_$*)
 
 .PHONY: test
-ifdef USE_GOTESTSUM
-test: $(GOTESTSUM)
+test: unit-tests e2e-tests
+
+unit-tests: $(BUILD_DIRS)
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    $(BUILD_IMAGE)                                          \
+	    /bin/bash -c "                                          \
+	        ARCH=$(ARCH)                                        \
+	        OS=$(OS)                                            \
+	        VERSION=$(VERSION)                                  \
+	        ./hack/test.sh $(SRC_PKGS)                          \
+	    "
+
+# - e2e-tests can hold both ginkgo args (as GINKGO_ARGS) and program/test args (as TEST_ARGS).
+#       make e2e-tests TEST_ARGS="--selfhosted-operator=false --storageclass=standard" GINKGO_ARGS="--flakeAttempts=2"
+#
+# - Minimalist:
+#       make e2e-tests
+#
+# NB: -t is used to catch ctrl-c interrupt from keyboard and -t will be problematic for CI.
+
+GINKGO_ARGS ?=
+TEST_ARGS   ?=
+
+.PHONY: e2e-tests
+e2e-tests: $(BUILD_DIRS)
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    --net=host                                              \
+	    -v $(HOME)/.kube:/.kube                                 \
+	    -v $(HOME)/.minikube:$(HOME)/.minikube                  \
+	    -v $(HOME)/.credentials:$(HOME)/.credentials            \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    --env KUBECONFIG=$(KUBECONFIG)                          \
+	    --env-file=$$(pwd)/hack/config/.env                     \
+	    $(BUILD_IMAGE)                                          \
+	    /bin/bash -c "                                          \
+	        ARCH=$(ARCH)                                        \
+	        OS=$(OS)                                            \
+	        VERSION=$(VERSION)                                  \
+	        DOCKER_REGISTRY=$(REGISTRY)                         \
+	        TAG=$(TAG)                                          \
+	        KUBECONFIG=$${KUBECONFIG#$(HOME)}                   \
+	        GINKGO_ARGS='$(GINKGO_ARGS)'                        \
+	        TEST_ARGS='$(TEST_ARGS)'                            \
+	        ./hack/e2e.sh                                       \
+	    "
+
+.PHONY: e2e-parallel
+e2e-parallel:
+	@$(MAKE) e2e-tests GINKGO_ARGS="-p -stream --flakeAttempts=2" --no-print-directory
+
+ADDTL_LINTERS   := gofmt,goimports,unparam
+
+.PHONY: lint
+lint: $(BUILD_DIRS)
+	@echo "running linter"
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    --env GOFLAGS="-mod=vendor"                             \
+	    $(BUILD_IMAGE)                                          \
+	    golangci-lint run --enable $(ADDTL_LINTERS) --max-same-issues=100 --timeout=10m --skip-files="generated.*\.go$\" --skip-dirs-use-default --skip-dirs=client,vendor
+
+$(BUILD_DIRS):
+	@mkdir -p $@
+
+KUBE_NAMESPACE    ?= kubeops
+REGISTRY_SECRET   ?=
+IMAGE_PULL_POLICY	?= IfNotPresent
+
+ifeq ($(strip $(REGISTRY_SECRET)),)
+	IMAGE_PULL_SECRETS =
+else
+	IMAGE_PULL_SECRETS = --set imagePullSecrets[0].name=$(REGISTRY_SECRET)
 endif
-test: WHAT ?= ./...
-# We will need to move into the sub package, of pkg/apis to run those tests.
-test:  ## run unit tests
-	$(GO_TEST) -race -count $(COUNT) -coverprofile=coverage.txt -covermode=atomic $(TEST_ARGS) $$(go list "$(WHAT)" | grep -v ./test/e2e/)
-	cd pkg/apis && $(GO_TEST) -race -count $(COUNT) -coverprofile=coverage.txt -covermode=atomic $(TEST_ARGS) $(WHAT)
 
-.PHONY: verify-imports
-verify-imports:
-	hack/verify-imports.sh
+.PHONY: dev
+dev: gen fmt push
 
-.PHONY: verify-go-versions
-verify-go-versions:
-	hack/verify-go-versions.sh
-
-.PHONY: modules
-modules: ## Run go mod tidy to ensure modules are up to date
-	go mod tidy
-	cd pkg/apis; go mod tidy
+.PHONY: verify
+verify: verify-gen verify-modules
 
 .PHONY: verify-modules
-verify-modules: modules  # Verify go modules are up to date
-	@if !(git diff --quiet HEAD -- go.sum go.mod pkg/apis/go.mod pkg/apis/go.sum); then \
-		git diff; \
+verify-modules:
+	go mod tidy
+	go mod vendor
+	@if !(git diff --exit-code HEAD); then \
 		echo "go module files are out of date"; exit 1; \
 	fi
 
-.PHONY: verify
-verify: verify-modules verify-go-versions verify-imports verify-codegen verify-boilerplate ## verify formal properties of the code
+.PHONY: verify-gen
+verify-gen: gen fmt
+	@if !(git diff --exit-code HEAD); then \
+		echo "generated files are out of date, run make gen fmt"; exit 1; \
+	fi
 
-.PHONY: help
-help: ## Show this help.
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+.PHONY: add-license
+add-license:
+	@echo "Adding license header"
+	@docker run --rm 	                                 \
+		-u $$(id -u):$$(id -g)                           \
+		-v /tmp:/.cache                                  \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                   \
+		-w $(DOCKER_REPO_ROOT)                           \
+		--env HTTP_PROXY=$(HTTP_PROXY)                   \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                 \
+		$(BUILD_IMAGE)                                   \
+		ltag -t "./hack/license" --excludes "vendor bin" -v
+
+.PHONY: check-license
+check-license:
+	@echo "Checking files have proper license header"
+	@docker run --rm 	                                 \
+		-u $$(id -u):$$(id -g)                           \
+		-v /tmp:/.cache                                  \
+		-v $$(pwd):$(DOCKER_REPO_ROOT)                   \
+		-w $(DOCKER_REPO_ROOT)                           \
+		--env HTTP_PROXY=$(HTTP_PROXY)                   \
+		--env HTTPS_PROXY=$(HTTPS_PROXY)                 \
+		$(BUILD_IMAGE)                                   \
+		ltag -t "./hack/license" --excludes "vendor bin" --check -v
+
+.PHONY: ci
+ci: verify check-license lint build unit-tests #cover
+
+.PHONY: qa
+qa:
+	@if [ "$$APPSCODE_ENV" = "prod" ]; then                                              \
+		echo "Nothing to do in prod env. Are you trying to 'release' binaries to prod?"; \
+		exit 1;                                                                          \
+	fi
+	@if [ "$(version_strategy)" = "tag" ]; then               \
+		echo "Are you trying to 'release' binaries to prod?"; \
+		exit 1;                                               \
+	fi
+	@$(MAKE) clean all-build all-push docker-manifest --no-print-directory
+
+.PHONY: release
+release:
+	@if [ "$$APPSCODE_ENV" != "prod" ]; then      \
+		echo "'release' only works in PROD env."; \
+		exit 1;                                   \
+	fi
+	@if [ "$(version_strategy)" != "tag" ]; then                    \
+		echo "apply tag to release binaries and/or docker images."; \
+		exit 1;                                                     \
+	fi
+	@$(MAKE) clean all-build all-push docker-manifest --no-print-directory
+
+.PHONY: clean
+clean:
+	rm -rf .go bin
+
+.PHONY: push-to-kind
+push-to-kind: container
+	@echo "Loading docker image into kind cluster...."
+	@kind load docker-image $(IMAGE):$(TAG_PROD)
+	@echo "Image has been pushed successfully into kind cluster."
+
+.PHONY: gen-krew-manifest
+gen-krew-manifest:
+	@if [ "$(version_strategy)" != "tag" ]; then \
+		echo "apply tag to generate krew manifest."; \
+		exit 1; \
+	fi
+	@sed \
+      -e 's|{VERSION}|$(VERSION)|g' \
+      -e 's|{SHA256SUM_DARWIN_AMD64}|$(shell sha256sum bin/$(BIN)-darwin-amd64.tar.gz | cut -d' ' -f1)|g' \
+      -e 's|{SHA256SUM_DARWIN_ARM64}|$(shell sha256sum bin/$(BIN)-darwin-arm64.tar.gz | cut -d' ' -f1)|g' \
+      -e 's|{SHA256SUM_LINUX_AMD64}|$(shell sha256sum bin/$(BIN)-linux-amd64.tar.gz | cut -d' ' -f1)|g' \
+      -e 's|{SHA256SUM_LINUX_ARM}|$(shell sha256sum bin/$(BIN)-linux-arm.tar.gz | cut -d' ' -f1)|g' \
+      -e 's|{SHA256SUM_LINUX_ARM64}|$(shell sha256sum bin/$(BIN)-linux-arm64.tar.gz | cut -d' ' -f1)|g' \
+      -e 's|{SHA256SUM_WINDOWS_AMD64}|$(shell sha256sum bin/$(BIN)-windows-amd64.zip | cut -d' ' -f1)|g' \
+      hack/krew/plugin.yaml

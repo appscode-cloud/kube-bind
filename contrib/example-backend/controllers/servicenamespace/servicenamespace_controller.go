@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,13 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/client/informers/externalversions/kubebind/v1alpha1"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -38,13 +45,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
 )
 
 const (
@@ -54,7 +54,7 @@ const (
 // NewController returns a new controller for ServiceNamespaces.
 func NewController(
 	config *rest.Config,
-	scope kubebindv1alpha1.Scope,
+	scope v1alpha1.Scope,
 	serviceNamespaceInformer bindinformers.APIServiceNamespaceInformer,
 	clusterBindingInformer bindinformers.ClusterBindingInformer,
 	serviceExportInformer bindinformers.APIServiceExportInformer,
@@ -126,8 +126,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceNamespace, *kubebindv1alpha1.APIServiceNamespaceSpec, *kubebindv1alpha1.APIServiceNamespaceStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceNamespace] {
+		commit: committer.NewCommitter[*v1alpha1.APIServiceNamespace, *v1alpha1.APIServiceNamespaceSpec, *v1alpha1.APIServiceNamespaceStatus](
+			func(ns string) committer.Patcher[*v1alpha1.APIServiceNamespace] {
 				return bindClient.KubeBindV1alpha1().APIServiceNamespaces(ns)
 			},
 		),
@@ -181,11 +181,11 @@ func NewController(
 			c.enqueueServiceExport(logger, obj)
 		},
 		UpdateFunc: func(old, newObj interface{}) {
-			oldExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+			oldExport, ok := old.(*v1alpha1.APIServiceExport)
 			if !ok {
 				return
 			}
-			newExport, ok := old.(*kubebindv1alpha1.APIServiceExport)
+			newExport, ok := old.(*v1alpha1.APIServiceExport)
 			if !ok {
 				return
 			}
@@ -205,8 +205,10 @@ func NewController(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceNamespaceSpec, *kubebindv1alpha1.APIServiceNamespaceStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*v1alpha1.APIServiceNamespaceSpec, *v1alpha1.APIServiceNamespaceStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 // Controller reconciles ServiceNamespaces by creating a Namespace for each, and deleting it if
 // the APIServiceNamespace is deleted.

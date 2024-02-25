@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,8 +21,17 @@ import (
 	"reflect"
 	"time"
 
-	conditionsapi "kmodules.xyz/client-go/api/v1"
-	"kmodules.xyz/client-go/conditions"
+	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/client/informers/externalversions"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/clusterbinding"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/namespacedeletion"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/servicebinding"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
+	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 
 	crdlisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,18 +43,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/clusterbinding"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/namespacedeletion"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/servicebinding"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/cluster/serviceexport"
-	"go.bytebuilders.dev/kube-bind/pkg/konnector/controllers/dynamic"
-	konnectormodels "go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+	conditionsapi "kmodules.xyz/client-go/api/v1"
+	"kmodules.xyz/client-go/conditions"
 )
 
 const (

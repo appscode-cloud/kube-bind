@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,9 +29,15 @@ import (
 	"strings"
 	"time"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/cookie"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
+	"go.bytebuilders.dev/kube-bind/contrib/example-backend/template"
+	bindversion "go.bytebuilders.dev/kube-bind/pkg/version"
+
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,18 +45,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	componentbaseversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
-
-	"go.bytebuilders.dev/kube-bind/contrib/example-backend/cookie"
-	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes"
-	"go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes/resources"
-	"go.bytebuilders.dev/kube-bind/contrib/example-backend/template"
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindversion "go.bytebuilders.dev/kube-bind/pkg/version"
 )
 
-var (
-	resourcesTemplate = htmltemplate.Must(htmltemplate.New("resource").Parse(mustRead(template.Files.ReadFile, "resources.gohtml")))
-)
+var resourcesTemplate = htmltemplate.Must(htmltemplate.New("resource").Parse(mustRead(template.Files.ReadFile, "resources.gohtml")))
 
 // See https://developers.google.com/web/fundamentals/performance/optimizing-content-efficiency/http-caching?hl=en
 var noCacheHeaders = map[string]string{
@@ -62,7 +59,7 @@ var noCacheHeaders = map[string]string{
 type handler struct {
 	oidc *OIDCServiceProvider
 
-	scope              kubebindv1alpha1.Scope
+	scope              v1alpha1.Scope
 	oidcAuthorizeURL   string
 	backendCallbackURL string
 	providerPrettyName string
@@ -80,7 +77,7 @@ func NewHandler(
 	provider *OIDCServiceProvider,
 	oidcAuthorizeURL, backendCallbackURL, providerPrettyName, testingAutoSelect string,
 	cookieSigningKey, cookieEncryptionKey []byte,
-	scope kubebindv1alpha1.Scope,
+	scope v1alpha1.Scope,
 	mgr *kubernetes.Manager,
 	apiextensionsLister apiextensionslisters.CustomResourceDefinitionLister,
 ) (*handler, error) {
@@ -121,17 +118,17 @@ func (h *handler) handleServiceExport(w http.ResponseWriter, r *http.Request) {
 		ver = "v0.0.0"
 	}
 
-	provider := &kubebindv1alpha1.BindingProvider{
+	provider := &v1alpha1.BindingProvider{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: kubebindv1alpha1.GroupVersion,
+			APIVersion: v1alpha1.GroupVersion,
 			Kind:       "BindingProvider",
 		},
 		Version:            ver,
 		ProviderPrettyName: "example-backend",
-		AuthenticationMethods: []kubebindv1alpha1.AuthenticationMethod{
+		AuthenticationMethods: []v1alpha1.AuthenticationMethod{
 			{
 				Method: "OAuth2CodeGrant",
-				OAuth2CodeGrant: &kubebindv1alpha1.OAuth2CodeGrant{
+				OAuth2CodeGrant: &v1alpha1.OAuth2CodeGrant{
 					AuthenticatedURL: oidcAuthorizeURL,
 				},
 			},
@@ -306,7 +303,7 @@ func (h *handler) handleResources(w http.ResponseWriter, r *http.Request) {
 	})
 	rightScopedCRDs := []*apiextensionsv1.CustomResourceDefinition{}
 	for _, crd := range crds {
-		if h.scope == kubebindv1alpha1.ClusterScope || crd.Spec.Scope == apiextensionsv1.NamespaceScoped {
+		if h.scope == v1alpha1.ClusterScope || crd.Spec.Scope == apiextensionsv1.NamespaceScoped {
 			rightScopedCRDs = append(rightScopedCRDs, crd)
 		}
 	}
@@ -368,20 +365,20 @@ func (h *handler) handleBind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	request := kubebindv1alpha1.APIServiceExportRequestResponse{
+	request := v1alpha1.APIServiceExportRequestResponse{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: kubebindv1alpha1.SchemeGroupVersion.String(),
+			APIVersion: v1alpha1.SchemeGroupVersion.String(),
 			Kind:       "APIServiceExportRequest",
 		},
-		ObjectMeta: kubebindv1alpha1.NameObjectMeta{
+		ObjectMeta: v1alpha1.NameObjectMeta{
 			// this is good for one resource. If there are more (in the future),
 			// we need a better name heuristic. Note: it does not have to be unique.
 			// But pretty is better.
 			Name: resource + "." + group,
 		},
-		Spec: kubebindv1alpha1.APIServiceExportRequestSpec{
-			Resources: []kubebindv1alpha1.APIServiceExportRequestResource{
-				{GroupResource: kubebindv1alpha1.GroupResource{Group: group, Resource: resource}},
+		Spec: v1alpha1.APIServiceExportRequestSpec{
+			Resources: []v1alpha1.APIServiceExportRequestResource{
+				{GroupResource: v1alpha1.GroupResource{Group: group, Resource: resource}},
 			},
 		},
 	}
@@ -393,13 +390,13 @@ func (h *handler) handleBind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	response := kubebindv1alpha1.BindingResponse{
+	response := v1alpha1.BindingResponse{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: kubebindv1alpha1.SchemeGroupVersion.String(),
+			APIVersion: v1alpha1.SchemeGroupVersion.String(),
 			Kind:       "BindingResponse",
 		},
-		Authentication: kubebindv1alpha1.BindingResponseAuthentication{
-			OAuth2CodeGrant: &kubebindv1alpha1.BindingResponseAuthenticationOAuth2CodeGrant{
+		Authentication: v1alpha1.BindingResponseAuthentication{
+			OAuth2CodeGrant: &v1alpha1.BindingResponseAuthenticationOAuth2CodeGrant{
 				SessionID: state.SessionID,
 				ID:        idToken.Issuer + "/" + idToken.Subject,
 			},

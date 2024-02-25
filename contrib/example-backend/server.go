@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,10 +22,7 @@ import (
 	"fmt"
 	"net"
 
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/klog/v2"
-
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
 	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/clusterbinding"
 	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/serviceexport"
 	"go.bytebuilders.dev/kube-bind/contrib/example-backend/controllers/serviceexportrequest"
@@ -33,7 +30,10 @@ import (
 	"go.bytebuilders.dev/kube-bind/contrib/example-backend/deploy"
 	examplehttp "go.bytebuilders.dev/kube-bind/contrib/example-backend/http"
 	examplekube "go.bytebuilders.dev/kube-bind/contrib/example-backend/kubernetes"
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
+
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2"
 )
 
 type Server struct {
@@ -114,7 +114,7 @@ func NewServer(config *Config) (*Server, error) {
 		config.Options.TestingAutoSelect,
 		signingKey,
 		encryptionKey,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
+		v1alpha1.Scope(config.Options.ConsumerScope),
 		s.Kubernetes,
 		config.ApiextensionsInformers.Apiextensions().V1().CustomResourceDefinitions().Lister(),
 	)
@@ -126,7 +126,7 @@ func NewServer(config *Config) (*Server, error) {
 	// construct controllers
 	s.ClusterBinding, err = clusterbinding.NewController(
 		config.ClientConfig,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
+		v1alpha1.Scope(config.Options.ConsumerScope),
 		config.BindInformers.KubeBind().V1alpha1().ClusterBindings(),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExports(),
 		config.KubeInformers.Rbac().V1().ClusterRoles(),
@@ -139,7 +139,7 @@ func NewServer(config *Config) (*Server, error) {
 	}
 	s.ServiceNamespace, err = servicenamespace.NewController(
 		config.ClientConfig,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
+		v1alpha1.Scope(config.Options.ConsumerScope),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceNamespaces(),
 		config.BindInformers.KubeBind().V1alpha1().ClusterBindings(),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExports(),
@@ -160,8 +160,8 @@ func NewServer(config *Config) (*Server, error) {
 	}
 	s.ServiceExportRequest, err = serviceexportrequest.NewController(
 		config.ClientConfig,
-		kubebindv1alpha1.Scope(config.Options.ConsumerScope),
-		kubebindv1alpha1.Isolation(config.Options.ClusterScopedIsolation),
+		v1alpha1.Scope(config.Options.ConsumerScope),
+		v1alpha1.Isolation(config.Options.ClusterScopedIsolation),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExportRequests(),
 		config.BindInformers.KubeBind().V1alpha1().APIServiceExports(),
 		config.ApiextensionsInformers.Apiextensions().V1().CustomResourceDefinitions(),

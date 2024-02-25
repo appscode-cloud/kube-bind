@@ -1,11 +1,11 @@
 /*
-Copyright 2022 The Kube Bind Authors.
+Copyright AppsCode Inc. and Contributors
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the AppsCode Community License 1.0.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    https://github.com/appscode/licenses/raw/1.0.0/AppsCode-Community-1.0.0.md
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,13 @@ import (
 	"fmt"
 	"time"
 
+	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
+	bindinformers "go.bytebuilders.dev/kube-bind/client/informers/externalversions/kubebind/v1alpha1"
+	bindlisters "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/committer"
+	"go.bytebuilders.dev/kube-bind/pkg/indexers"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextensionsinformers "k8s.io/apiextensions-apiserver/pkg/client/informers/externalversions/apiextensions/v1"
 	apiextensionslisters "k8s.io/apiextensions-apiserver/pkg/client/listers/apiextensions/v1"
@@ -34,13 +41,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-
-	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/pkg/apis/kubebind/v1alpha1"
-	bindclient "go.bytebuilders.dev/kube-bind/pkg/client/clientset/versioned"
-	bindinformers "go.bytebuilders.dev/kube-bind/pkg/client/informers/externalversions/kubebind/v1alpha1"
-	bindlisters "go.bytebuilders.dev/kube-bind/pkg/client/listers/kubebind/v1alpha1"
-	"go.bytebuilders.dev/kube-bind/pkg/committer"
-	"go.bytebuilders.dev/kube-bind/pkg/indexers"
 )
 
 const (
@@ -51,8 +51,8 @@ const (
 // creating corresponding APIServiceExports.
 func NewController(
 	config *rest.Config,
-	scope kubebindv1alpha1.Scope,
-	isolation kubebindv1alpha1.Isolation,
+	scope v1alpha1.Scope,
+	isolation v1alpha1.Isolation,
 	serviceExportRequestInformer bindinformers.APIServiceExportRequestInformer,
 	serviceExportInformer bindinformers.APIServiceExportInformer,
 	crdInformer apiextensionsinformers.CustomResourceDefinitionInformer,
@@ -96,10 +96,10 @@ func NewController(
 			getCRD: func(name string) (*apiextensionsv1.CustomResourceDefinition, error) {
 				return crdInformer.Lister().Get(name)
 			},
-			getServiceExport: func(ns, name string) (*kubebindv1alpha1.APIServiceExport, error) {
+			getServiceExport: func(ns, name string) (*v1alpha1.APIServiceExport, error) {
 				return serviceExportInformer.Lister().APIServiceExports(ns).Get(name)
 			},
-			createServiceExport: func(ctx context.Context, resource *kubebindv1alpha1.APIServiceExport) (*kubebindv1alpha1.APIServiceExport, error) {
+			createServiceExport: func(ctx context.Context, resource *v1alpha1.APIServiceExport) (*v1alpha1.APIServiceExport, error) {
 				return bindClient.KubeBindV1alpha1().APIServiceExports(resource.Namespace).Create(ctx, resource, metav1.CreateOptions{})
 			},
 			deleteServiceExportRequest: func(ctx context.Context, ns, name string) error {
@@ -107,8 +107,8 @@ func NewController(
 			},
 		},
 
-		commit: committer.NewCommitter[*kubebindv1alpha1.APIServiceExportRequest, *kubebindv1alpha1.APIServiceExportRequestSpec, *kubebindv1alpha1.APIServiceExportRequestStatus](
-			func(ns string) committer.Patcher[*kubebindv1alpha1.APIServiceExportRequest] {
+		commit: committer.NewCommitter[*v1alpha1.APIServiceExportRequest, *v1alpha1.APIServiceExportRequestSpec, *v1alpha1.APIServiceExportRequestStatus](
+			func(ns string) committer.Patcher[*v1alpha1.APIServiceExportRequest] {
 				return bindClient.KubeBindV1alpha1().APIServiceExportRequests(ns)
 			},
 		),
@@ -169,8 +169,10 @@ func NewController(
 	return c, nil
 }
 
-type Resource = committer.Resource[*kubebindv1alpha1.APIServiceExportRequestSpec, *kubebindv1alpha1.APIServiceExportRequestStatus]
-type CommitFunc = func(context.Context, *Resource, *Resource) error
+type (
+	Resource   = committer.Resource[*v1alpha1.APIServiceExportRequestSpec, *v1alpha1.APIServiceExportRequestStatus]
+	CommitFunc = func(context.Context, *Resource, *Resource) error
+)
 
 // Controller to reconcile APIServiceExportRequests by creating corresponding APIServiceExports.
 type Controller struct {
