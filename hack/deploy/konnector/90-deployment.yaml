@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: konnector
-  namespace: kube-bind
+  namespace: ace
   labels:
     app: konnector
 spec:
