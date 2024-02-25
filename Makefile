@@ -21,7 +21,7 @@ ENFORCE_LICENSE    ?=
 
 GO_PKG   := go.bytebuilders.dev
 REPO     := $(notdir $(shell pwd))
-BIN      ?= kubectl-connect
+BIN      := $(if $(EXTBIN),$(EXTBIN),kubectl-connect)
 COMPRESS ?= no
 
 CRD_OPTIONS          ?= "crd:crdVersions={v1},allowDangerousTypes=true,generateEmbeddedObjectMeta=true"
@@ -111,26 +111,26 @@ all: fmt build
 build-%:
 	@$(MAKE) build                        \
 	    --no-print-directory              \
-	    BIN=konnector                     \
+	    EXTBIN=konnector                  \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 	@$(MAKE) build                        \
 	    --no-print-directory              \
-	    BIN=kubectl-connect               \
+	    EXTBIN=kubectl-connect            \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
 container-%:
 	@$(MAKE) container                    \
 	    --no-print-directory              \
-	    BIN=konnector                     \
+	    EXTBIN=konnector                  \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
 push-%:
 	@$(MAKE) push                         \
 	    --no-print-directory              \
-	    BIN=konnector                     \
+	    EXTBIN=konnector                  \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
