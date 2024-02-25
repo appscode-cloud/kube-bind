@@ -17,7 +17,7 @@ kube-bind is a project that aims to provide better support for service providers
 This is the 3 line pitch:
 
 ```shell
-$ kubectl krew index add bind https://github.com/appscode/krew-index.git
+$ kubectl krew index add appscode https://github.com/appscode/krew-index.git
 $ kubectl krew install appscode/connect
 $ kubectl connect https://mangodb/exports
 Redirect to the brower to authenticate via OIDC.

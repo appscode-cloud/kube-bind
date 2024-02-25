@@ -60,7 +60,7 @@ SRC_PKGS := apis client cmd contrib crds deploy docs examples guides hack pkg te
 SRC_DIRS := $(SRC_PKGS) # directories which hold app source (not vendored)
 
 DOCKER_PLATFORMS := linux/amd64 linux/arm64
-BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64 darwin/arm64
+BIN_PLATFORMS    := $(DOCKER_PLATFORMS) linux/arm windows/amd64 darwin/amd64 darwin/arm64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
 OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
