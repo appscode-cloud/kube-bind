@@ -21,7 +21,7 @@ ENFORCE_LICENSE    ?=
 
 GO_PKG   := go.bytebuilders.dev
 REPO     := $(notdir $(shell pwd))
-BIN      := kubectl-connect
+BIN      ?= kubectl-connect
 COMPRESS ?= no
 
 CRD_OPTIONS          ?= "crd:crdVersions={v1},allowDangerousTypes=true,generateEmbeddedObjectMeta=true"
@@ -60,7 +60,7 @@ SRC_PKGS := apis client cmd contrib crds deploy docs examples guides hack pkg te
 SRC_DIRS := $(SRC_PKGS) # directories which hold app source (not vendored)
 
 DOCKER_PLATFORMS := linux/amd64 linux/arm64
-BIN_PLATFORMS    := $(DOCKER_PLATFORMS)
+BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64 darwin/arm64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
 OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
@@ -77,7 +77,7 @@ TAG              := $(VERSION)_$(OS)_$(ARCH)
 TAG_PROD         := $(TAG)
 TAG_DBG          := $(VERSION)-dbg_$(OS)_$(ARCH)
 
-GO_VERSION       ?= 1.21
+GO_VERSION       ?= 1.22
 BUILD_IMAGE      ?= ghcr.io/appscode/golang-dev:$(GO_VERSION)
 CHART_TEST_IMAGE ?= quay.io/helmpack/chart-testing:v3.5.1
 
@@ -111,18 +111,26 @@ all: fmt build
 build-%:
 	@$(MAKE) build                        \
 	    --no-print-directory              \
+	    BIN=konnector                     \
+	    GOOS=$(firstword $(subst _, ,$*)) \
+	    GOARCH=$(lastword $(subst _, ,$*))
+	@$(MAKE) build                        \
+	    --no-print-directory              \
+	    BIN=kubectl-connect               \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
 container-%:
 	@$(MAKE) container                    \
 	    --no-print-directory              \
+	    BIN=konnector                     \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
 push-%:
 	@$(MAKE) push                         \
 	    --no-print-directory              \
+	    BIN=konnector                     \
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
@@ -310,7 +318,14 @@ bin/.push-$(DOTFILE_IMAGE)-%: bin/.container-$(DOTFILE_IMAGE)-%
 	@echo
 
 .PHONY: docker-manifest
-docker-manifest: docker-manifest-PROD docker-manifest-DBG
+docker-manifest:
+	@$(MAKE) docker-manifest-PROD         \
+	    --no-print-directory              \
+	    BIN=konnector
+	@$(MAKE) docker-manifest-DBG          \
+	    --no-print-directory              \
+	    BIN=konnector
+
 docker-manifest-%:
 	docker manifest create -a $(IMAGE):$(VERSION_$*) $(foreach PLATFORM,$(DOCKER_PLATFORMS),$(IMAGE):$(VERSION_$*)_$(subst /,_,$(PLATFORM)))
 	docker manifest push $(IMAGE):$(VERSION_$*)
