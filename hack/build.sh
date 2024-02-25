@@ -63,6 +63,14 @@ fi
 go install \
     -installsuffix "static" \
     -ldflags "                                          \
+      -X k8s.io/client-go/pkg/version.gitCommit=${commit_hash:-} \
+      -X k8s.io/client-go/pkg/version.gitVersion=${VERSION} \
+      -X k8s.io/client-go/pkg/version.buildDate=${commit_timestamp:-} \
+      \
+      -X k8s.io/component-base/version.gitCommit=${commit_hash:-} \
+      -X k8s.io/component-base/version.gitVersion=${VERSION} \
+      -X k8s.io/component-base/version.buildDate=${commit_timestamp:-} \
+      \
       -X main.Version=${VERSION}                        \
       -X main.VersionStrategy=${version_strategy:-}     \
       -X main.GitTag=${git_tag:-}                       \
