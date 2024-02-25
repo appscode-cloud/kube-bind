@@ -23,7 +23,7 @@ import (
 	"time"
 
 	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
-	"go.bytebuilders.dev/kube-bind/deploy/konnector"
+	"go.bytebuilders.dev/kube-bind/hack/deploy/konnector"
 	"go.bytebuilders.dev/kube-bind/pkg/version"
 
 	"github.com/blang/semver/v4"
