@@ -4,7 +4,7 @@
 
 ## What is it?
 
-kube-bind is a project that aims to provide better support for service providers and consumers that reside in distinct Kubernetes clusters. The code in this repo has been forked from the [kube-bind](https://github.com/kube-bind/kube-bind) project.
+kube-bind is a project that aims to provide better support for service providers and consumers that reside in distinct Kubernetes clusters. The code in this repo has been forked from the [kube-bind](https://github.com/kube-bind/kube-bind) project and adapted to meet the requirements of [AppsCode](https://appscode.com)'s Kubernetes native services. We would like to thank [Dr. Stefan Schimanski](https://github.com/sttts) for the `kube-bind` project.
 
 - A service provider defines its API in terms of CRDs and associated permission claims/limitations, and exports it for use from other clusters.
 - Service consumers identify the services they want to consume.
@@ -97,5 +97,5 @@ The `--cookie-encryption-key` option is optional and supports byte lengths of 16
 
 ## Copyright
 
-Copyright 2022-2023 The Kube Bind Authors.
-Copyright 2024 AppsCode Inc. and Contributors.
+- Copyright 2024 AppsCode Inc. and Contributors.
+- Copyright 2022-2023 The Kube Bind Authors.
