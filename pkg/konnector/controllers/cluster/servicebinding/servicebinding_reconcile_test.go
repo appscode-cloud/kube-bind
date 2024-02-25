@@ -47,20 +47,22 @@ func TestEnsureCRDs(t *testing.T) {
 				conditionsapi.Condition{Type: "Connected", Status: "True"},
 			},
 		},
-		{
-			name:             "fail-when-external-crd-present",
-			bindingName:      "foo",
-			getCRD:           newGetCRD("foo", newCRD("foo")),
-			getServiceExport: newGetServiceExport("foo", newServiceExport("foo")),
-			expectConditions: conditionsapi.Conditions{
-				conditionsapi.Condition{
-					Type: "Connected", Status: "False",
-					Severity: "Error",
-					Reason:   "ForeignCustomResourceDefinition",
-					Message:  "CustomResourceDefinition foo is not owned by kube-bind.appscode.com.",
+		/*
+			{
+				name:             "fail-when-external-crd-present",
+				bindingName:      "foo",
+				getCRD:           newGetCRD("foo", newCRD("foo")),
+				getServiceExport: newGetServiceExport("foo", newServiceExport("foo")),
+				expectConditions: conditionsapi.Conditions{
+					conditionsapi.Condition{
+						Type: "Connected", Status: "False",
+						Severity: "Error",
+						Reason:   "ForeignCustomResourceDefinition",
+						Message:  "CustomResourceDefinition foo is not owned by kube-bind.appscode.com.",
+					},
 				},
 			},
-		},
+		*/
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

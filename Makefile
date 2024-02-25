@@ -56,8 +56,8 @@ endif
 ### These variables should not need tweaking.
 ###
 
-SRC_PKGS := apis client cmd contrib crds deploy docs examples guides hack pkg test # directories which hold app source excluding tests (not vendored)
-SRC_DIRS := $(SRC_PKGS) # directories which hold app source (not vendored)
+SRC_PKGS := apis client cmd contrib crds deploy docs examples guides hack pkg # directories which hold app source excluding tests (not vendored)
+SRC_DIRS := $(SRC_PKGS) test # directories which hold app source (not vendored)
 
 DOCKER_PLATFORMS := linux/amd64 linux/arm64
 BIN_PLATFORMS    := $(DOCKER_PLATFORMS) linux/arm windows/amd64 darwin/amd64 darwin/arm64
@@ -374,7 +374,6 @@ e2e-tests: $(BUILD_DIRS)
 	    -w /src                                                 \
 	    --net=host                                              \
 	    -v $(HOME)/.kube:/.kube                                 \
-	    -v $(HOME)/.minikube:$(HOME)/.minikube                  \
 	    -v $(HOME)/.credentials:$(HOME)/.credentials            \
 	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
 	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \

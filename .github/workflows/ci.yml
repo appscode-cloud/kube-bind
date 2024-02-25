@@ -16,16 +16,15 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v2
 
-      - name: Set up Go 1.21
+      - name: Set up Go 1.22
         uses: actions/setup-go@v1
         with:
-          go-version: '1.21'
+          go-version: '1.22'
         id: go
-
-      - uses: actions/checkout@v2
 
       - name: Set up QEMU
         id: qemu
@@ -37,3 +36,44 @@ jobs:
       - name: Run checks
         run: |
           make ci
+
+  kubernetes:
+    name: Kubernetes
+    runs-on: ubuntu-22.04
+    needs: build
+    strategy:
+      matrix:
+        k8s: [v1.29.0]
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v1
+        with:
+          go-version: '1.22'
+        id: go
+
+      - name: Create Kubernetes ${{ matrix.k8s }} cluster
+        id: kind
+        uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: v0.17.0
+          image: kindest/node:${{ matrix.k8s }}
+
+      - name: Prepare cluster for testing
+        id: local-path
+        env:
+          USERNAME: 1gtm
+          REGISTRY_SECRET: regcred
+        run: |
+          echo "waiting for nodes to be ready ..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=5m
+          kubectl get nodes
+          echo
+          echo "install helm 3"
+          pushd /usr/local/bin && sudo curl -fsSLO https://github.com/x-helm/helm/releases/latest/download/helm && sudo chmod +x helm && popd
+
+      - name: Test charts
+        run: |
+          export KUBECONFIG="${HOME}/.kube/config"
+          go test -v ./test/e2e/...
