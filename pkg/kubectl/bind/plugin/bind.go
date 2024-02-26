@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 	"go.bytebuilders.dev/kube-bind/pkg/kubectl/base"
 	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/authenticator"
 
@@ -158,19 +159,19 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return fmt.Errorf("unsupported binding provider version: %q", provider.APIVersion)
 	}
 
-	ns, err := kubeClient.CoreV1().Namespaces().Get(ctx, "kube-bind", metav1.GetOptions{})
+	ns, err := kubeClient.CoreV1().Namespaces().Get(ctx, models.KonnectorNamespace, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	} else if apierrors.IsNotFound(err) {
 		ns = &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "kube-bind",
+				Name: models.KonnectorNamespace,
 			},
 		}
 		if ns, err = kubeClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 			return err
 		} else {
-			fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created kube-bind namespace.\n") // nolint: errcheck
+			fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created ace namespace.\n") // nolint: errcheck
 		}
 	}
 
@@ -241,9 +242,9 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return err
 	}
 	if created {
-		fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+		fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
 	} else {
-		fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+		fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
 	}
 
 	// print the request in dry-run mode

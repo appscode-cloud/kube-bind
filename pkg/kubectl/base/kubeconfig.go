@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/models"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,12 +50,12 @@ func ParseRemoteKubeconfig(kubeconfig []byte) (host string, ns string, err error
 func FindRemoteKubeconfig(ctx context.Context, kubeClient *kubernetes.Clientset, remoteNamespace string, remoteHost string) (string, error) {
 	logger := klog.FromContext(ctx)
 
-	secrets, err := kubeClient.CoreV1().Secrets("kube-bind").List(ctx, v1.ListOptions{})
+	secrets, err := kubeClient.CoreV1().Secrets(models.KonnectorNamespace).List(ctx, v1.ListOptions{})
 	if err != nil {
 		return "", err
 	}
 	for _, s := range secrets.Items {
-		logger := logger.WithValues("namespace", "kube-bind", "name", s.Name)
+		logger := logger.WithValues("namespace", models.KonnectorNamespace, "name", s.Name)
 		bs, found := s.Data["kubeconfig"]
 		if !found {
 			logger.V(6).Info("secret does not contain kubeconfig")
@@ -92,7 +94,7 @@ func EnsureKubeconfigSecret(ctx context.Context, kubeconfig, name string, client
 	if name == "" {
 		secret := &corev1.Secret{
 			ObjectMeta: v1.ObjectMeta{
-				Namespace:    "kube-bind",
+				Namespace:    models.KonnectorNamespace,
 				GenerateName: "kubeconfig-",
 			},
 			Data: map[string][]byte{
@@ -100,7 +102,7 @@ func EnsureKubeconfigSecret(ctx context.Context, kubeconfig, name string, client
 			},
 		}
 
-		secret, err := client.CoreV1().Secrets("kube-bind").Create(ctx, secret, v1.CreateOptions{})
+		secret, err := client.CoreV1().Secrets(models.KonnectorNamespace).Create(ctx, secret, v1.CreateOptions{})
 		if err != nil {
 			return nil, false, err
 		}
@@ -111,13 +113,13 @@ func EnsureKubeconfigSecret(ctx context.Context, kubeconfig, name string, client
 	var secret *corev1.Secret
 	if err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var err error
-		secret, err = client.CoreV1().Secrets("kube-bind").Get(ctx, name, v1.GetOptions{})
+		secret, err = client.CoreV1().Secrets(models.KonnectorNamespace).Get(ctx, name, v1.GetOptions{})
 		if err != nil {
 			return err
 		}
 		bs, found := secret.Data["kubeconfig"]
 		if !found {
-			return fmt.Errorf("secret %s/%s does not contain a kubeconfig", "kube-bind", name)
+			return fmt.Errorf("secret %s/%s does not contain a kubeconfig", models.KonnectorNamespace, name)
 		}
 		existingHost, existingNamespace, err := ParseRemoteKubeconfig(bs)
 		if err != nil {
@@ -127,7 +129,7 @@ func EnsureKubeconfigSecret(ctx context.Context, kubeconfig, name string, client
 			return errors.NewAlreadyExists(corev1.Resource("secret"), secret.Name)
 		}
 		secret.Data["kubeconfig"] = []byte(kubeconfig)
-		if _, err := client.CoreV1().Secrets("kube-bind").Update(ctx, secret, v1.UpdateOptions{}); err != nil {
+		if _, err := client.CoreV1().Secrets(models.KonnectorNamespace).Update(ctx, secret, v1.UpdateOptions{}); err != nil {
 			return err
 		}
 		return nil

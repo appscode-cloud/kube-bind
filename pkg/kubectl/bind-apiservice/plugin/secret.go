@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 	"go.bytebuilders.dev/kube-bind/pkg/kubectl/base"
 
 	corev1 "k8s.io/api/core/v1"
@@ -38,7 +39,7 @@ func (b *BindAPIServiceOptions) createKubeconfigSecret(ctx context.Context, conf
 	// create kube-bind namespace
 	if _, err := kubeClient.CoreV1().Namespaces().Create(ctx, &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-bind",
+			Name: models.KonnectorNamespace,
 		},
 	}, metav1.CreateOptions{}); err != nil && !apierrors.IsAlreadyExists(err) {
 		return "", err
@@ -76,9 +77,9 @@ func (b *BindAPIServiceOptions) ensureKubeconfigSecretWithLogging(ctx context.Co
 
 	if b.remoteKubeconfigFile != "" {
 		if created {
-			fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+			fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
 		} else {
-			fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", "kube-bind", secret.Name, remoteHost, remoteNamespace)
+			fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
 		}
 	}
 

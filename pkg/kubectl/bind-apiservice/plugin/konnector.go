@@ -24,6 +24,7 @@ import (
 
 	bindclient "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
 	"go.bytebuilders.dev/kube-bind/hack/deploy/konnector"
+	"go.bytebuilders.dev/kube-bind/pkg/konnector/models"
 	"go.bytebuilders.dev/kube-bind/pkg/version"
 
 	"github.com/blang/semver/v4"
@@ -131,7 +132,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 }
 
 func currentKonnectorVersion(ctx context.Context, kubeClient kubeclient.Interface) (string, bool, error) {
-	deployment, err := kubeClient.AppsV1().Deployments("kube-bind").Get(ctx, "konnector", metav1.GetOptions{})
+	deployment, err := kubeClient.AppsV1().Deployments(models.KonnectorNamespace).Get(ctx, "konnector", metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return "", false, err
 	} else if errors.IsNotFound(err) {
