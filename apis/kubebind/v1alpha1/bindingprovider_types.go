@@ -27,14 +27,6 @@ import (
 type BindingProvider struct {
 	metav1.TypeMeta `json:",inline"`
 
-	// providerClusterName is the name of the provider that is displayed to the user, e.g:
-	// MangoDB Inc.
-	//
-	// +required
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	ProviderClusterName string `json:"providerClusterName"`
-
 	// version is the kube-bind.appscode.com version of the provider. The kubectl bind will check
 	// this for compatibility.
 	//

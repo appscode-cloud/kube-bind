@@ -123,8 +123,7 @@ func (h *handler) handleServiceExport(w http.ResponseWriter, r *http.Request) {
 			APIVersion: v1alpha1.GroupVersion,
 			Kind:       "BindingProvider",
 		},
-		Version:            ver,
-		ProviderPrettyName: "example-backend",
+		Version: ver,
 		AuthenticationMethods: []v1alpha1.AuthenticationMethod{
 			{
 				Method: "OAuth2CodeGrant",

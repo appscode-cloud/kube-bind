@@ -64,7 +64,7 @@ func (r *reconciler) reconcile(ctx context.Context, binding *v1alpha1.APIService
 		errs = append(errs, err)
 	}
 
-	if err := r.ensurePrettyName(ctx, binding); err != nil {
+	if err := r.ensureClusterName(ctx, binding); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -197,7 +197,7 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *v1alpha1.APIServic
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensurePrettyName(ctx context.Context, binding *v1alpha1.APIServiceBinding) error {
+func (r *reconciler) ensureClusterName(ctx context.Context, binding *v1alpha1.APIServiceBinding) error {
 	binding.Status.Providers = []v1alpha1.Provider{}
 	for _, provider := range r.providerInfos {
 		clusterBinding, err := r.getClusterBinding(ctx, provider)
@@ -211,7 +211,10 @@ func (r *reconciler) ensurePrettyName(ctx context.Context, binding *v1alpha1.API
 			LocalSecretKeyRef: clusterBinding.Spec.KubeconfigSecretRef,
 			Namespace:         clusterBinding.Namespace,
 		}
-		prov.PrettyName = clusterBinding.Spec.ProviderPrettyName
+		if clusterBinding.Status.Provider != nil {
+			prov.ClusterIdentity.ClusterName = clusterBinding.Spec.ProviderClusterName
+			prov.ClusterIdentity.ClusterUID = clusterBinding.Status.Provider.ClusterUID
+		}
 		binding.Status.Providers = append(binding.Status.Providers, prov)
 	}
 
