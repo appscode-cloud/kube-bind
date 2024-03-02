@@ -105,13 +105,13 @@ type ClusterBindingSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="kubeconfigSecretRef is immutable"
 	KubeconfigSecretRef LocalSecretKeyRef `json:"kubeconfigSecretRef"`
 
-	// providerPrettyName is the pretty name of the service provider cluster. This
+	// providerClusterName is the cluster name of the service provider cluster. This
 	// can be shared among different ServiceBindings.
 	//
 	// +required
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	ProviderPrettyName string `json:"providerPrettyName"`
+	ProviderClusterName string `json:"providerClusterName"`
 
 	// serviceProviderSpec contains all the data and information about the service which has been bound to the service
 	// binding request. The service providers decide what they need and what to configure based on what then include in
@@ -122,6 +122,9 @@ type ClusterBindingSpec struct {
 // ClusterBindingStatus stores status information about a service binding. It is
 // updated by both the konnector and the service provider.
 type ClusterBindingStatus struct {
+	// Provider is the cluster id and name of the service provider cluster.
+	Provider *ClusterIdentity `json:"provider,omitempty"`
+
 	// lastHeartbeatTime is the last time the konnector updated the status.
 	LastHeartbeatTime metav1.Time `json:"lastHeartbeatTime,omitempty"`
 

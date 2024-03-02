@@ -60,7 +60,6 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:scope=Cluster,categories=kube-bindings,shortName=sb
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="Provider",type="string",JSONPath=`.status.providerPrettyName`,priority=0
 // +kubebuilder:printcolumn:name="Resources",type="string",JSONPath=`.metadata.annotations.kube-bind\.appscode\.com/resources`,priority=1
 // +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=`.status.conditions[?(@.type=="Ready")].status`,priority=0
 // +kubebuilder:printcolumn:name="Message",type="string",JSONPath=`.status.conditions[?(@.type=="Ready")].message`,priority=0
@@ -94,15 +93,18 @@ type APIServiceBindingSpec struct {
 }
 
 type Provider struct {
-	// providerPrettyName is the pretty name of the service provider cluster. This
-	// can be shared among different APIServiceBindings.
-	PrettyName string `json:"providerPrettyName,omitempty"`
+	ClusterIdentity `json:",inline"`
 
 	Kubeconfig *ClusterSecretKeyRef `json:"kubeconfigs,omitempty"`
 }
 
+type ClusterIdentity struct {
+	ClusterUID  string `json:"clusterUID"`
+	ClusterName string `json:"clusterName"`
+}
+
 type APIServiceBindingStatus struct {
-	// Providers contains the PrettyName and KubeconfigSecretRef of the provider cluster
+	// Providers contains the provider ClusterIdentity and KubeconfigSecretRef of the provider cluster
 	Providers []Provider `json:"providers,omitempty"`
 
 	// conditions is a list of conditions that apply to the APIServiceBinding.

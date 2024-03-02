@@ -34,6 +34,7 @@ import (
 	clientgoversion "k8s.io/client-go/pkg/version"
 )
 
+// getProvider calls for /export url and returns BindingProvider which contains the oidc authentication method
 func getProvider(url string) (*kubebindv1alpha1.BindingProvider, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -90,7 +91,7 @@ func validateProviderVersion(providerVersion string) error {
 	return nil
 }
 
-func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, callback, sessionID, clusterID string, urlCh chan<- string) error {
+func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, callback, sessionID, clusterID, clusterName string, urlCh chan<- string) error {
 	var oauth2Method *kubebindv1alpha1.OAuth2CodeGrant
 	for _, m := range provider.AuthenticationMethods {
 		if m.Method == "OAuth2CodeGrant" {
@@ -120,6 +121,7 @@ func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, c
 	values.Add("p", cbPort)
 	values.Add("s", sessionID)
 	values.Add("c", clusterID)
+	values.Add("n", clusterName)
 	u.RawQuery = values.Encode()
 
 	fmt.Fprintf(b.Options.ErrOut, "\nTo authenticate, visit in your browser:\n\n\t%s\n", u.String()) // nolint: errcheck

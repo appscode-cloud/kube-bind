@@ -150,6 +150,8 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return err // should never happen because we test this in Validate()
 	}
 
+	providerClusterName := exportURL.Query().Get("cluster")
+
 	provider, err := getProvider(exportURL.String())
 	if err != nil {
 		return fmt.Errorf("failed to fetch authentication url %q: %v", exportURL, err)
@@ -183,7 +185,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	}
 
 	sessionID := SessionID()
-	if err := b.authenticate(provider, auth.Endpoint(), sessionID, ClusterID(ns), urlCh); err != nil {
+	if err := b.authenticate(provider, auth.Endpoint(), sessionID, ClusterID(ns), providerClusterName, urlCh); err != nil {
 		return err
 	}
 

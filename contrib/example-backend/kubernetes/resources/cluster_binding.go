@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func CreateClusterBinding(ctx context.Context, client bindclient.Interface, ns, secretName, providerPrettyName string) error {
+func CreateClusterBinding(ctx context.Context, client bindclient.Interface, ns, secretName, clusterName string) error {
 	logger := klog.FromContext(ctx)
 
 	clusterBinding := &v1alpha1.ClusterBinding{
@@ -35,7 +35,7 @@ func CreateClusterBinding(ctx context.Context, client bindclient.Interface, ns, 
 			Namespace: ns,
 		},
 		Spec: v1alpha1.ClusterBindingSpec{
-			ProviderPrettyName: providerPrettyName,
+			ProviderClusterName: clusterName,
 			KubeconfigSecretRef: v1alpha1.LocalSecretKeyRef{
 				Name: secretName,
 				Key:  "kubeconfig",
