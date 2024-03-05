@@ -60,9 +60,9 @@ type reconciler struct {
 func (r *reconciler) reconcile(ctx context.Context, clusterBinding *v1alpha1.ClusterBinding) error {
 	var errs []error
 
-	if err := r.ensureKubeSystemNSAccess(ctx, clusterBinding); err != nil {
-		errs = append(errs, err)
-	}
+	//if err := r.ensureKubeSystemNSAccess(ctx, clusterBinding); err != nil {
+	//	errs = append(errs, err)
+	//}
 	r.ensureClusterBindingConditions(clusterBinding)
 	if err := r.ensureRBACRoleBinding(ctx, clusterBinding); err != nil {
 		errs = append(errs, err)
