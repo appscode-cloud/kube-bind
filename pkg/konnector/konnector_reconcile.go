@@ -31,8 +31,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-//const namespaceKubeSystem = "kube-system"
-
+// const namespaceKubeSystem = "kube-system"
 type startable interface {
 	Start(ctx context.Context)
 }
