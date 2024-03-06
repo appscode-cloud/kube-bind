@@ -85,17 +85,17 @@ func (in *APIServiceBinding) SetConditions(conditions conditionsapi.Conditions) 
 }
 
 type APIServiceBindingSpec struct {
-	// kubeconfigSecretName is the secret ref that contains the kubeconfig of the service cluster.
-	//
 	// +required
 	// +kubebuilder:validation:Required
-	KubeconfigSecretRefs []ClusterSecretKeyRef `json:"kubeconfigSecretRefs"`
+	// Providers contains the provider ClusterIdentity and KubeconfigSecretRef of the provider cluster
+	Providers []Provider `json:"providers,omitempty"`
 }
 
 type Provider struct {
 	ClusterIdentity `json:",inline"`
+	RemoteNamespace string `json:"remoteNamespace,omitempty"`
 
-	Kubeconfig *ClusterSecretKeyRef `json:"kubeconfigs,omitempty"`
+	Kubeconfig ClusterSecretKeyRef `json:"kubeconfig,omitempty"`
 }
 
 type ClusterIdentity struct {
@@ -104,9 +104,6 @@ type ClusterIdentity struct {
 }
 
 type APIServiceBindingStatus struct {
-	// Providers contains the provider ClusterIdentity and KubeconfigSecretRef of the provider cluster
-	Providers []Provider `json:"providers,omitempty"`
-
 	// conditions is a list of conditions that apply to the APIServiceBinding.
 	Conditions conditionsapi.Conditions `json:"conditions,omitempty"`
 }

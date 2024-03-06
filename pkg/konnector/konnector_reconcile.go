@@ -26,15 +26,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	kubernetesclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
 
-const namespaceKubeSystem = "kube-system"
-
+// const namespaceKubeSystem = "kube-system"
 type startable interface {
 	Start(ctx context.Context)
 }
@@ -56,7 +53,7 @@ type controllerContext struct {
 }
 
 type providerIdentifier struct {
-	kubeconfig, secretRefName, secretRefNamespace string
+	kubeconfig, secretRefName, secretRefNamespace, clusterUID string
 }
 
 func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.APIServiceBinding) error {
@@ -65,20 +62,24 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 	var kubeconfigs []string
 	var identifiers []providerIdentifier
 
-	refs := binding.Spec.KubeconfigSecretRefs
-	for _, ref := range refs {
-		secret, err := r.getSecret(ref.Namespace, ref.Name)
+	for _, p := range binding.Spec.Providers {
+		secret, err := r.getSecret(p.Kubeconfig.Namespace, p.Kubeconfig.Name)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if errors.IsNotFound(err) {
-			logger.V(2).Info("secret not found", "secret", ref.Namespace+"/"+ref.Name)
+			logger.V(2).Info("secret not found", "secret", p.Kubeconfig.Namespace+"/"+p.Kubeconfig.Name)
 		} else {
-			kubeconfigs = append(kubeconfigs, string(secret.Data[ref.Key]))
-			identifiers = append(identifiers, providerIdentifier{
-				kubeconfig:         string(secret.Data[ref.Key]),
-				secretRefName:      ref.Name,
-				secretRefNamespace: ref.Namespace,
-			})
+			kubeconfigs = append(kubeconfigs, string(secret.Data[p.Kubeconfig.Key]))
+			idf := providerIdentifier{
+				kubeconfig:         string(secret.Data[p.Kubeconfig.Key]),
+				secretRefName:      p.Kubeconfig.Name,
+				secretRefNamespace: p.Kubeconfig.Namespace,
+			}
+			if p.ClusterUID != "" {
+				idf.clusterUID = p.ClusterUID
+			}
+
+			identifiers = append(identifiers, idf)
 		}
 	}
 
@@ -141,16 +142,18 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 		provider.ConsumerSecretRefKey = identifier.secretRefNamespace + "/" + identifier.secretRefName
 
 		// set cluster uid
-		kubeclient, err := kubernetesclient.NewForConfig(provider.Config)
-		if err != nil {
-			return err
-		}
-		ns, err := kubeclient.CoreV1().Namespaces().Get(ctx, namespaceKubeSystem, metav1.GetOptions{})
-		if err != nil {
-			klog.Error(err.Error())
-			return err
-		}
-		provider.ClusterID = string(ns.GetUID())
+		//kubeclient, err := kubernetesclient.NewForConfig(provider.Config)
+		//if err != nil {
+		//	return err
+		//}
+		//ns, err := kubeclient.CoreV1().Namespaces().Get(ctx, namespaceKubeSystem, metav1.GetOptions{})
+		//if err != nil {
+		//	klog.Error(err.Error())
+		//	return err
+		//}
+		//provider.ClusterID = string(ns.GetUID())
+
+		provider.ClusterID = identifier.clusterUID
 
 		providerInfos = append(providerInfos, &provider)
 	}

@@ -40,8 +40,7 @@ import (
 )
 
 const (
-	// konnectorImage = "ghcr.io/kube-bind/konnector"
-	konnectorImage = "superm4n/konnector"
+	konnectorImage = "ghcr.io/kube-bind/konnector"
 )
 
 // nolint: unused
@@ -71,7 +70,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 	}
 
 	if b.KonnectorImageOverride != "" {
-		fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace kube-bind with custom image %q.\n", bindVersion, b.KonnectorImageOverride) // nolint: errcheck
+		fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace %s with custom image %q.\n", bindVersion, models.KonnectorNamespace, b.KonnectorImageOverride) // nolint: errcheck
 		if err := konnector.Bootstrap(ctx, discoveryClient, dynamicClient, b.KonnectorImageOverride); err != nil {
 			return err
 		}

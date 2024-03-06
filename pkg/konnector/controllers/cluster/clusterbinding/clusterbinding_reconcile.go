@@ -18,6 +18,7 @@ package clusterbinding
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
@@ -38,6 +39,8 @@ import (
 type reconciler struct {
 	heartbeatInterval time.Duration
 
+	updateServiceBinding func(ctx context.Context, sbinding *kubebindv1alpha1.APIServiceBinding) error
+	getServiceBinding    func(ctx context.Context) (*kubebindv1alpha1.APIServiceBindingList, error)
 	getProviderSecret    func(porvider *konnectormodels.ProviderInfo) (*corev1.Secret, error)
 	getConsumerSecret    func(provider *konnectormodels.ProviderInfo) (*corev1.Secret, error)
 	updateConsumerSecret func(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error)
@@ -66,9 +69,38 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.Cl
 		errs = append(errs, err)
 	}
 
+	if err := r.ensureRightScopedServiceBinding(ctx, binding); err != nil {
+		errs = append(errs, err)
+	}
+
 	conditions.SetSummary(binding)
 
 	return utilerrors.NewAggregate(errs)
+}
+
+func (r *reconciler) ensureRightScopedServiceBinding(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding) error {
+	// return error if provider info is not set in clusterBinding status
+	if binding.Status.Provider.ClusterName == "" || binding.Status.Provider.ClusterUID == "" {
+		return fmt.Errorf("cluster name or uid is missing in ClusterBinding status")
+	}
+
+	sblist, err := r.getServiceBinding(ctx)
+	if err != nil {
+		return err
+	}
+	for _, sb := range sblist.Items {
+		for i := range sb.Spec.Providers {
+			if sb.Spec.Providers[i].RemoteNamespace == binding.Namespace && (sb.Spec.Providers[i].ClusterUID == "" || sb.Spec.Providers[i].ClusterName == "") {
+				sb.Spec.Providers[i].ClusterUID = binding.Status.Provider.ClusterUID
+				sb.Spec.Providers[i].ClusterName = binding.Status.Provider.ClusterName
+				if err = r.updateServiceBinding(ctx, &sb); err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	return nil
 }
 
 func (r *reconciler) ensureHeartbeat(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding) error {

@@ -101,6 +101,15 @@ func NewController(
 			heartbeatInterval: heartbeatInterval,
 			providerInfos:     providerInfos,
 
+			updateServiceBinding: func(ctx context.Context, sbinding *v1alpha1.APIServiceBinding) error {
+				if _, err = consumerBindClient.KubeBindV1alpha1().APIServiceBindings().Update(ctx, sbinding, metav1.UpdateOptions{}); err != nil {
+					return err
+				}
+				return nil
+			},
+			getServiceBinding: func(ctx context.Context) (*v1alpha1.APIServiceBindingList, error) {
+				return consumerBindClient.KubeBindV1alpha1().APIServiceBindings().List(ctx, metav1.ListOptions{})
+			},
 			getProviderInfo: func(clusterID string) (*konnectormodels.ProviderInfo, error) {
 				for _, provider := range providerInfos {
 					if provider.ClusterID == clusterID {
