@@ -26,7 +26,6 @@ import (
 	versioned "go.bytebuilders.dev/kube-bind/client/clientset/versioned"
 	internalinterfaces "go.bytebuilders.dev/kube-bind/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "go.bytebuilders.dev/kube-bind/client/listers/kubebind/v1alpha1"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

@@ -22,7 +22,6 @@ import (
 	"context"
 
 	v1alpha1 "go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"

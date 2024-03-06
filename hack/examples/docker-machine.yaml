@@ -5,7 +5,7 @@ metadata:
   namespace: demo
   annotations:
 #    provider.kube-bind.appscode.com/cluster-id: 71a87546-b339-45ee-bca5-033d277faca2
-    provider.kube-bind.appscode.com/cluster-id: e95736c6-06f2-43ae-9f17-bbcc0c38c4ed
+    provider.kube-bind.appscode.com/cluster-id: 68d95713-cdbf-4fc1-96ed-ca2fc743ec7c
 spec:
   driver:
     name: google

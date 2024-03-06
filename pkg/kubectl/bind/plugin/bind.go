@@ -279,7 +279,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 			"--remote-kubeconfig-name", secret.Name,
 			// comment the remote namespace
 			"--remote-namespace", remoteNamespace,
-			"--konnector-image", "superm4n/konnector:latest",
+			//"--konnector-image", "superm4n/konnector:v0.5.0_linux_amd64",
 			"-f", "-",
 		}
 		b.flags.VisitAll(func(flag *pflag.Flag) {

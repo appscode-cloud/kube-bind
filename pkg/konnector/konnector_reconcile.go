@@ -63,25 +63,23 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 	var kubeconfigs []string
 	var identifiers []providerIdentifier
 
-	refs := binding.Spec.KubeconfigSecretRefs
-	for _, ref := range refs {
-		secret, err := r.getSecret(ref.Namespace, ref.Name)
+	for _, p := range binding.Spec.Providers {
+		secret, err := r.getSecret(p.Kubeconfig.Namespace, p.Kubeconfig.Name)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		} else if errors.IsNotFound(err) {
-			logger.V(2).Info("secret not found", "secret", ref.Namespace+"/"+ref.Name)
+			logger.V(2).Info("secret not found", "secret", p.Kubeconfig.Namespace+"/"+p.Kubeconfig.Name)
 		} else {
-			kubeconfigs = append(kubeconfigs, string(secret.Data[ref.Key]))
+			kubeconfigs = append(kubeconfigs, string(secret.Data[p.Kubeconfig.Key]))
 			idf := providerIdentifier{
-				kubeconfig:         string(secret.Data[ref.Key]),
-				secretRefName:      ref.Name,
-				secretRefNamespace: ref.Namespace,
+				kubeconfig:         string(secret.Data[p.Kubeconfig.Key]),
+				secretRefName:      p.Kubeconfig.Name,
+				secretRefNamespace: p.Kubeconfig.Namespace,
 			}
-			for _, p := range binding.Status.Providers {
-				if p.Kubeconfig.Namespace == ref.Namespace {
-					idf.clusterUID = p.ClusterUID
-				}
+			if p.ClusterUID != "" {
+				idf.clusterUID = p.ClusterUID
 			}
+
 			identifiers = append(identifiers, idf)
 		}
 	}

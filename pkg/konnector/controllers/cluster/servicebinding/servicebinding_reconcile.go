@@ -64,9 +64,9 @@ func (r *reconciler) reconcile(ctx context.Context, binding *v1alpha1.APIService
 		errs = append(errs, err)
 	}
 
-	if err := r.ensureClusterName(ctx, binding); err != nil {
-		errs = append(errs, err)
-	}
+	//if err := r.ensureClusterName(ctx, binding); err != nil {
+	//	errs = append(errs, err)
+	//}
 
 	conditions.SetSummary(binding)
 
@@ -197,26 +197,26 @@ func (r *reconciler) ensureCRDs(ctx context.Context, binding *v1alpha1.APIServic
 	return utilerrors.NewAggregate(errs)
 }
 
-func (r *reconciler) ensureClusterName(ctx context.Context, binding *v1alpha1.APIServiceBinding) error {
-	binding.Status.Providers = []v1alpha1.Provider{}
-	for _, provider := range r.providerInfos {
-		clusterBinding, err := r.getClusterBinding(ctx, provider)
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		} else if errors.IsNotFound(err) {
-			return nil
-		}
-		prov := v1alpha1.Provider{}
-		prov.Kubeconfig = &v1alpha1.ClusterSecretKeyRef{
-			LocalSecretKeyRef: clusterBinding.Spec.KubeconfigSecretRef,
-			Namespace:         clusterBinding.Namespace,
-		}
-		if clusterBinding.Status.Provider != nil {
-			prov.ClusterIdentity.ClusterName = clusterBinding.Spec.ProviderClusterName
-			prov.ClusterIdentity.ClusterUID = clusterBinding.Status.Provider.ClusterUID
-		}
-		binding.Status.Providers = append(binding.Status.Providers, prov)
-	}
-
-	return nil
-}
+//func (r *reconciler) ensureClusterName(ctx context.Context, binding *v1alpha1.APIServiceBinding) error {
+//	binding.Status.Providers = []v1alpha1.Provider{}
+//	for _, provider := range r.providerInfos {
+//		clusterBinding, err := r.getClusterBinding(ctx, provider)
+//		if err != nil && !errors.IsNotFound(err) {
+//			return err
+//		} else if errors.IsNotFound(err) {
+//			return nil
+//		}
+//		prov := v1alpha1.Provider{}
+//		prov.Kubeconfig = &v1alpha1.ClusterSecretKeyRef{
+//			LocalSecretKeyRef: clusterBinding.Spec.KubeconfigSecretRef,
+//			Namespace:         clusterBinding.Namespace,
+//		}
+//		if clusterBinding.Status.Provider != nil {
+//			prov.ClusterIdentity.ClusterName = clusterBinding.Spec.ProviderClusterName
+//			prov.ClusterIdentity.ClusterUID = clusterBinding.Status.Provider.ClusterUID
+//		}
+//		binding.Status.Providers = append(binding.Status.Providers, prov)
+//	}
+//
+//	return nil
+//}

@@ -35,7 +35,7 @@ import (
 	"kmodules.xyz/client-go/conditions"
 )
 
-func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *v1alpha1.APIServiceExportRequest, secretName string) ([]*v1alpha1.APIServiceBinding, error) {
+func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, config *rest.Config, request *v1alpha1.APIServiceExportRequest, secretName, remoteNs string) ([]*v1alpha1.APIServiceBinding, error) {
 	bindClient, err := bindclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -52,30 +52,30 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 		if err != nil && !apierrors.IsNotFound(err) {
 			return nil, err
 		} else if err == nil {
-			//if existing.Spec.KubeconfigSecretRef.Namespace != "kube-bind" || existing.Spec.KubeconfigSecretRef.Name != secretName {
-			//	return nil, fmt.Errorf("found existing APIServiceBinding %s not from this service provider", name)
-			//}
-
 			hasSecret := false
-			for _, secRef := range existing.Spec.KubeconfigSecretRefs {
-				if secRef.Namespace == models.KonnectorNamespace && secRef.Name == secretName {
+			for _, p := range existing.Spec.Providers {
+				if p.Kubeconfig.Namespace == models.KonnectorNamespace && p.Kubeconfig.Name == secretName {
 					hasSecret = true
 					fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Existing APIServiceBinding \"%s\" already has the secret \"%s\".\n", existing.Name, secretName) // nolint: errcheck
 					break
 				}
 			}
+
 			if hasSecret {
 				continue
 			}
 
 			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
 
-			existing.Spec.KubeconfigSecretRefs = append(existing.Spec.KubeconfigSecretRefs, v1alpha1.ClusterSecretKeyRef{
-				LocalSecretKeyRef: v1alpha1.LocalSecretKeyRef{
-					Name: secretName,
-					Key:  "kubeconfig",
+			existing.Spec.Providers = append(existing.Spec.Providers, v1alpha1.Provider{
+				Kubeconfig: v1alpha1.ClusterSecretKeyRef{
+					LocalSecretKeyRef: v1alpha1.LocalSecretKeyRef{
+						Name: secretName,
+						Key:  "kubeconfig",
+					},
+					Namespace: models.KonnectorNamespace,
 				},
-				Namespace: models.KonnectorNamespace,
+				RemoteNamespace: remoteNs,
 			})
 
 			existing, err = bindClient.KubeBindV1alpha1().APIServiceBindings().Update(ctx, existing, metav1.UpdateOptions{})
@@ -110,13 +110,16 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 					Namespace: models.KonnectorNamespace,
 				},
 				Spec: v1alpha1.APIServiceBindingSpec{
-					KubeconfigSecretRefs: []v1alpha1.ClusterSecretKeyRef{
+					Providers: []v1alpha1.Provider{
 						{
-							LocalSecretKeyRef: v1alpha1.LocalSecretKeyRef{
-								Name: secretName,
-								Key:  "kubeconfig",
+							Kubeconfig: v1alpha1.ClusterSecretKeyRef{
+								LocalSecretKeyRef: v1alpha1.LocalSecretKeyRef{
+									Name: secretName,
+									Key:  "kubeconfig",
+								},
+								Namespace: models.KonnectorNamespace,
 							},
-							Namespace: models.KonnectorNamespace,
+							RemoteNamespace: remoteNs,
 						},
 					},
 				},

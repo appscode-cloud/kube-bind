@@ -172,7 +172,7 @@ func (b *BindAPIServiceOptions) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	bindings, err := b.createAPIServiceBindings(ctx, config, result, secretName)
+	bindings, err := b.createAPIServiceBindings(ctx, config, result, secretName, remoteNamespace)
 	if err != nil {
 		return err
 	}
