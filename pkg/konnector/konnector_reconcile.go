@@ -69,7 +69,7 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 		} else if errors.IsNotFound(err) {
 			logger.V(2).Info("secret not found", "secret", p.Kubeconfig.Namespace+"/"+p.Kubeconfig.Name)
 		} else {
-			kubeconfigs = append(kubeconfigs, string(secret.Data[p.Kubeconfig.Key]))
+			kubeconfigs = append(kubeconfigs, string(secret.Data[p.Kubeconfig.Key])+p.ClusterName+p.ClusterUID)
 			idf := providerIdentifier{
 				kubeconfig:         string(secret.Data[p.Kubeconfig.Key]),
 				secretRefName:      p.Kubeconfig.Name,
@@ -140,18 +140,6 @@ func (r *reconciler) reconcile(ctx context.Context, binding *kubebindv1alpha1.AP
 			return nil // nothing we can do here. The APIServiceBinding Controller will set a condition
 		}
 		provider.ConsumerSecretRefKey = identifier.secretRefNamespace + "/" + identifier.secretRefName
-
-		// set cluster uid
-		//kubeclient, err := kubernetesclient.NewForConfig(provider.Config)
-		//if err != nil {
-		//	return err
-		//}
-		//ns, err := kubeclient.CoreV1().Namespaces().Get(ctx, namespaceKubeSystem, metav1.GetOptions{})
-		//if err != nil {
-		//	klog.Error(err.Error())
-		//	return err
-		//}
-		//provider.ClusterID = string(ns.GetUID())
 
 		provider.ClusterID = identifier.clusterUID
 
