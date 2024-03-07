@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 SHELL=/bin/bash -o pipefail
 
 PRODUCT_OWNER_NAME := appscode
