@@ -94,6 +94,7 @@ func (r *reconciler) ensureRightScopedServiceBinding(ctx context.Context, bindin
 				sb.Spec.Providers[i].ClusterUID = binding.Status.Provider.ClusterUID
 				sb.Spec.Providers[i].ClusterName = binding.Status.Provider.ClusterName
 				if err = r.updateServiceBinding(ctx, &sb); err != nil {
+					klog.Errorf(err.Error())
 					return err
 				}
 				break
