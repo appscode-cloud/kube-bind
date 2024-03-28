@@ -56,10 +56,7 @@ func getProvider(url string) (*kubebindv1alpha1.BindingProvider, error) {
 	}
 
 	// check provider version compatibility
-	bindVersion, err := version.BinaryVersion(clientgoversion.Get().GitVersion)
-	if err != nil {
-		return nil, err
-	}
+	bindVersion := version.BinaryVersion(clientgoversion.Get().GitVersion)
 	if bindSemVer, err := semver.Parse(strings.TrimLeft(bindVersion, "v")); err != nil {
 		return nil, fmt.Errorf("failed to parse bind version %q: %v", bindVersion, err)
 	} else if min := semver.MustParse("0.3.0"); bindSemVer.GE(min) {

@@ -18,8 +18,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"go.bytebuilders.dev/kube-bind/pkg/konnector"
 	konnectoroptions "go.bytebuilders.dev/kube-bind/pkg/konnector/options"
@@ -33,12 +31,7 @@ import (
 )
 
 func New(ctx context.Context) *cobra.Command {
-	ver, err := bindversion.BinaryVersion(componentbaseversion.Get().GitVersion)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get version: %v\n", err) // nolint:errcheck
-		ver = "<unknown>"
-	}
-
+	ver := bindversion.BinaryVersion(componentbaseversion.Get().GitVersion)
 	options := konnectoroptions.NewOptions()
 	cmd := &cobra.Command{
 		Use:     "konnector",

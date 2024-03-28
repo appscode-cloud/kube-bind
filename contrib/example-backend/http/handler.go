@@ -112,12 +112,7 @@ func (h *handler) handleServiceExport(w http.ResponseWriter, r *http.Request) {
 		oidcAuthorizeURL = fmt.Sprintf("http://%s/authorize", r.Host)
 	}
 
-	ver, err := bindversion.BinaryVersion(componentbaseversion.Get().GitVersion)
-	if err != nil {
-		logger.Error(err, "failed to parse version %q", componentbaseversion.Get().GitVersion)
-		ver = "v0.0.0"
-	}
-
+	ver := bindversion.BinaryVersion(componentbaseversion.Get().GitVersion)
 	provider := &v1alpha1.BindingProvider{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.GroupVersion,

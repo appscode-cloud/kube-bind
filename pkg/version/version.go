@@ -20,9 +20,9 @@ import (
 	"strings"
 )
 
-func BinaryVersion(s string) (string, error) {
+func BinaryVersion(s string) string {
 	if strings.HasPrefix(s, "v0.0.0-") {
-		return "v0.0.0", nil // special version if no ldflags are set
+		return "v0.0.0" // special version if no ldflags are set
 	}
-	return s, nil
+	return s
 }

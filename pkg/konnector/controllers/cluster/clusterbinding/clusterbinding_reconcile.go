@@ -188,24 +188,7 @@ func (r *reconciler) ensureConsumerSecret(ctx context.Context, binding *kubebind
 }
 
 func (r *reconciler) ensureKonnectorVersion(ctx context.Context, binding *kubebindv1alpha1.ClusterBinding) error {
-	gitVersion := componentbaseversion.Get().GitVersion
-	ver, err := version.BinaryVersion(gitVersion)
-	if err != nil {
-		binding.Status.KonnectorVersion = "unknown"
-
-		conditions.MarkFalse(
-			binding,
-			kubebindv1alpha1.ClusterBindingConditionValidVersion,
-			"ParseError",
-			conditionsapi.ConditionSeverityWarning,
-			"Konnector binary version string %q cannot be parsed: %v",
-			componentbaseversion.Get().GitVersion,
-			err,
-		)
-		return nil
-	}
-
-	binding.Status.KonnectorVersion = ver
+	binding.Status.KonnectorVersion = version.BinaryVersion(componentbaseversion.Get().GitVersion)
 
 	conditions.MarkTrue(
 		binding,

@@ -64,10 +64,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 		return err
 	}
 
-	bindVersion, err := version.BinaryVersion(clientgoversion.Get().GitVersion)
-	if err != nil {
-		return err
-	}
+	bindVersion := version.BinaryVersion(clientgoversion.Get().GitVersion)
 
 	if b.KonnectorImageOverride != "" {
 		fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace %s with custom image %q.\n", bindVersion, models.KonnectorNamespace, b.KonnectorImageOverride) // nolint: errcheck
