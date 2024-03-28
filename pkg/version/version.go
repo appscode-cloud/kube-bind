@@ -17,7 +17,6 @@ limitations under the License.
 package version
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -25,14 +24,5 @@ func BinaryVersion(s string) (string, error) {
 	if strings.HasPrefix(s, "v0.0.0-") {
 		return "v0.0.0", nil // special version if no ldflags are set
 	}
-	parts := strings.SplitN(s, "+", 2)
-	if len(parts) < 2 {
-		return "", fmt.Errorf("failed to parse version %q", s)
-	}
-
-	prefix := "kube-bind"
-	if !strings.HasPrefix(parts[1], prefix) {
-		return "", fmt.Errorf("failed to parse version %q", s)
-	}
-	return strings.SplitN(strings.TrimPrefix(parts[1], prefix+"-"), "-", 2)[0], nil
+	return s, nil
 }
