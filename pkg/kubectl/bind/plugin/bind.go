@@ -151,6 +151,10 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	}
 
 	providerClusterName := exportURL.Query().Get("cluster")
+	user := exportURL.Query().Get("user")
+	if user == "" {
+		return fmt.Errorf("missing user in the connect url")
+	}
 
 	provider, err := getProvider(exportURL.String())
 	if err != nil {
@@ -185,7 +189,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	}
 
 	sessionID := SessionID()
-	if err := b.authenticate(provider, auth.Endpoint(), sessionID, ClusterID(ns), providerClusterName, urlCh); err != nil {
+	if err := b.authenticate(provider, auth.Endpoint(), sessionID, ClusterID(ns), providerClusterName, user, urlCh); err != nil {
 		return err
 	}
 

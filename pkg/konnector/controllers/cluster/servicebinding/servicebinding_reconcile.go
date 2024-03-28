@@ -101,7 +101,16 @@ func (r *reconciler) ensureValidServiceExport(ctx context.Context, binding *v1al
 func (r *reconciler) ensureCRDs(ctx context.Context, binding *v1alpha1.APIServiceBinding) error {
 	var errs []error
 
-	for _, provider := range r.providerInfos {
+	for _, p := range binding.Spec.Providers {
+		if p.ClusterUID == "" {
+			continue
+		}
+		provider, err := konnectormodels.GetProviderInfoWithClusterID(r.providerInfos, p.ClusterUID)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
 		export, err := r.getServiceExport(provider, binding.Name)
 		if err != nil && !errors.IsNotFound(err) {
 			return err

@@ -91,7 +91,7 @@ func validateProviderVersion(providerVersion string) error {
 	return nil
 }
 
-func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, callback, sessionID, clusterID, clusterName string, urlCh chan<- string) error {
+func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, callback, sessionID, clusterID, clusterName, user string, urlCh chan<- string) error {
 	var oauth2Method *kubebindv1alpha1.OAuth2CodeGrant
 	for _, m := range provider.AuthenticationMethods {
 		if m.Method == "OAuth2CodeGrant" {
@@ -122,6 +122,7 @@ func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, c
 	values.Add("s", sessionID)
 	values.Add("c", clusterID)
 	values.Add("n", clusterName)
+	values.Add("o", user)
 	u.RawQuery = values.Encode()
 
 	fmt.Fprintf(b.Options.ErrOut, "\nTo authenticate, visit in your browser:\n\n\t%s\n", u.String()) // nolint: errcheck
