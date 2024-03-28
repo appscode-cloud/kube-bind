@@ -21,7 +21,6 @@ import (
 
 	"go.bytebuilders.dev/kube-bind/pkg/kubectl/bind-apiservice/plugin"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/exec"
@@ -61,11 +60,6 @@ func New(streams genericclioptions.IOStreams) (*cobra.Command, error) {
 
 			if err := opts.Validate(); err != nil {
 				return err
-			}
-
-			if !opts.NoBanner {
-				yellow := color.New(color.BgRed, color.FgBlack).SprintFunc()
-				fmt.Fprintf(streams.ErrOut, yellow("DISCLAIMER: This is a prototype. It will change in incompatible ways at any time.")+"\n\n") // nolint: errcheck
 			}
 
 			return opts.Run(cmd.Context())
