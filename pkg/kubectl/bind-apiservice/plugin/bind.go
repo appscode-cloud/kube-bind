@@ -61,7 +61,6 @@ type BindAPIServiceOptions struct {
 	SkipKonnector          bool
 	KonnectorImageOverride string
 	DowngradeKonnector     bool
-	Banner                 bool
 
 	url string
 }
@@ -90,8 +89,6 @@ func (b *BindAPIServiceOptions) AddCmdFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&b.DowngradeKonnector, "downgrade-konnector", b.DowngradeKonnector, "Downgrade the konnector to the version of the kubectl-bind-apiservice binary")
 	cmd.Flags().StringVar(&b.KonnectorImageOverride, "konnector-image", b.KonnectorImageOverride, "The konnector image to use")
 	cmd.Flags().MarkHidden("konnector-image") // nolint:errcheck
-	cmd.Flags().BoolVar(&b.Banner, "no-banner", b.Banner, "Do not show the red banner")
-	cmd.Flags().MarkHidden("no-banner") // nolint:errcheck
 }
 
 // Complete ensures all fields are initialized.
