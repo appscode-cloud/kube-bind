@@ -24,6 +24,7 @@ import (
 	bindcmd "go.bytebuilders.dev/kube-bind/pkg/kubectl/bind/cmd"
 
 	"github.com/spf13/pflag"
+	v "gomodules.xyz/x/version"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 )
 
@@ -43,6 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 	bindCmd.AddCommand(apiserviceCmd)
+	bindCmd.AddCommand(v.NewCmdVersion())
 
 	if err := bindCmd.Execute(); err != nil {
 		os.Exit(1)

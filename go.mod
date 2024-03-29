@@ -22,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
 	golang.org/x/oauth2 v0.18.0
+	gomodules.xyz/x v0.0.17
 	google.golang.org/grpc v1.62.1
 	gopkg.in/headzoo/surf.v1 v1.0.1
 	k8s.io/api v0.29.2
@@ -40,6 +41,7 @@ require (
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/PuerkitoBio/goquery v1.9.1 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
