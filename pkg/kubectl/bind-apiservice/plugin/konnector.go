@@ -100,7 +100,7 @@ func (b *BindAPIServiceOptions) deployKonnector(ctx context.Context, config *res
 				fmt.Fprintf(b.Options.ErrOut, "⚠️ Newer konnector %s installed. To downgrade to %s use --downgrade-konnector.\n", konnectorVersion, bindVersion) // nolint: errcheck
 			}
 		} else {
-			fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace kube-bind.\n", bindVersion) // nolint: errcheck
+			fmt.Fprintf(b.Options.ErrOut, "🚀 Deploying konnector %s to namespace %s.\n", bindVersion, models.KonnectorNamespace) // nolint: errcheck
 			if err := konnector.Bootstrap(ctx, discoveryClient, dynamicClient, konnectorImage); err != nil {
 				return err
 			}
