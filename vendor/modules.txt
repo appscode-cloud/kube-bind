@@ -190,8 +190,8 @@ github.com/headzoo/surf/jar
 github.com/headzoo/surf/util
 # github.com/headzoo/ut v0.0.0-20181013193318-a13b5a7a02ca
 ## explicit
-# github.com/imdario/mergo v0.3.11
-## explicit; go 1.13
+# github.com/imdario/mergo v0.3.6
+## explicit
 github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
