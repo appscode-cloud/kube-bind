@@ -17,6 +17,7 @@ limitations under the License.
 package authenticator
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	kubebindv1alpha1 "go.bytebuilders.dev/kube-bind/apis/kubebind/v1alpha1"
+	"go.bytebuilders.dev/kube-bind/pkg/template"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,11 +55,13 @@ type LocalhostCallbackAuthenticator struct {
 	done        chan struct{}
 	response    runtime.Object
 	responseGvk *schema.GroupVersionKind
+	redirectURL string
 }
 
-func NewLocalhostCallbackAuthenticator() *LocalhostCallbackAuthenticator {
+func NewLocalhostCallbackAuthenticator(redirectURL string) *LocalhostCallbackAuthenticator {
 	return &LocalhostCallbackAuthenticator{
-		done: make(chan struct{}),
+		done:        make(chan struct{}),
+		redirectURL: redirectURL,
 	}
 }
 
@@ -109,6 +113,10 @@ func (d *LocalhostCallbackAuthenticator) WaitForResponse(ctx context.Context) (r
 	}
 }
 
+type SuccessOptions struct {
+	RedirectURL string
+}
+
 func (d *LocalhostCallbackAuthenticator) callback(w http.ResponseWriter, r *http.Request) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -142,5 +150,12 @@ func (d *LocalhostCallbackAuthenticator) callback(w http.ResponseWriter, r *http
 	d.responseGvk = gvk
 	close(d.done)
 
-	w.Write([]byte("<h1>You have been authenticated successfully! Please head back to the command line</h1>")) // nolint: errcheck
+	op := SuccessOptions{RedirectURL: d.redirectURL}
+	bs := bytes.Buffer{}
+	if err = template.GetTemplate(template.TemplateSuccessPage).Execute(&bs, op); err != nil {
+		logger.Error(err, "error executing success template")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(bs.Bytes()) // nolint: errcheck
 }
