@@ -134,6 +134,13 @@ func (b *BindOptions) Validate() error {
 	return b.Options.Validate()
 }
 
+// redirectUrl generates the redirect url for success page
+// accepts string as bind.{host}
+func redirectUrl(host, user, cluster string) string {
+	_, domain, _ := strings.Cut(host, "bind.")
+	return fmt.Sprintf("https://db.%s/%s/%s", domain, user, cluster)
+}
+
 // Run starts the binding process.
 func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 	config, err := b.ClientConfig.ClientConfig()
@@ -181,7 +188,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		}
 	}
 
-	auth := authenticator.NewLocalhostCallbackAuthenticator()
+	auth := authenticator.NewLocalhostCallbackAuthenticator(redirectUrl(exportURL.Host, user, providerClusterName))
 	err = auth.Start()
 	fmt.Fprintf(b.Options.ErrOut, "\n\n")
 	if err != nil {
@@ -281,9 +288,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 			"apiservice",
 			"--remote-kubeconfig-namespace", secret.Namespace,
 			"--remote-kubeconfig-name", secret.Name,
-			// comment the remote namespace
 			"--remote-namespace", remoteNamespace,
-			//"--konnector-image", "superm4n/konnector:v0.5.0_linux_amd64",
 			"-f", "-",
 		}
 		b.flags.VisitAll(func(flag *pflag.Flag) {
