@@ -3,8 +3,6 @@ package template
 import (
 	"embed"
 	"html/template"
-
-	"github.com/Masterminds/sprig/v3"
 )
 
 //go:embed *
@@ -18,6 +16,5 @@ const (
 
 func GetTemplate(t Template) *template.Template {
 	return template.Must(template.New(string(t)).
-		Funcs(sprig.HtmlFuncMap()).
 		ParseFS(files, string(t)))
 }
