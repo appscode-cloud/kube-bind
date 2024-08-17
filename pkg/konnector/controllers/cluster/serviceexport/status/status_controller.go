@@ -201,7 +201,7 @@ func NewController(
 				if _, err = kmc.CreateOrPatch(ctx, consumerKubeClient, consumerSecret, func(_ client.Object, _ bool) client.Object {
 					return consumerSecret
 				}); err != nil && !strings.Contains(err.Error(), errorAlreadyExists) {
-					klog.Errorf(err.Error())
+					klog.Errorln(err)
 					return "", err
 				}
 
@@ -437,7 +437,7 @@ func (c *controller) processNextWorkItem(ctx context.Context) bool {
 
 	if err := c.process(ctx, key); err != nil {
 		runtime.HandleError(fmt.Errorf("%q controller failed to sync %q, err: %w", controllerName, key, err))
-		klog.Errorf(err.Error())
+		klog.Errorln(err)
 		c.queue.AddRateLimited(key)
 		return true
 	}
@@ -450,7 +450,7 @@ func splitMetaNamespaceKeyWithClusterID(key string) (clusterId, namespace, name 
 	switch len(parts) {
 	case 1:
 		// name only, no namespace
-		return "", "", "", fmt.Errorf(fmt.Sprintf("unexpected object key format: %q", key))
+		return "", "", "", fmt.Errorf("unexpected object key format: %q", key)
 	case 2:
 		// cluster id and name
 		return parts[0], "", parts[1], nil
@@ -473,7 +473,7 @@ func (c *controller) process(ctx context.Context, key string) error {
 
 	provider, err := konnectormodels.GetProviderInfoWithClusterID(c.providerInfos, clusterID)
 	if err != nil {
-		klog.Errorf(err.Error())
+		klog.Errorln(err)
 		return err
 	}
 
@@ -489,7 +489,7 @@ func (c *controller) process(ctx context.Context, key string) error {
 	})
 
 	if err != nil && !errors.IsNotFound(err) && !strings.Contains(err.Error(), errorContextDeadlineExceeded) {
-		klog.Errorf(err.Error())
+		klog.Errorln(err)
 		return err
 	} else if err != nil && (errors.IsNotFound(err) || strings.Contains(err.Error(), errorContextDeadlineExceeded)) {
 		logger.V(2).Info("Upstream object disappeared")

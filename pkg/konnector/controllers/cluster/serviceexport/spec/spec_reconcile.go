@@ -53,11 +53,11 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	provider, err := r.getProviderInfo(obj)
 	if err != nil {
-		klog.Errorf(fmt.Sprintf("failed to get provider information: %s", err.Error()))
+		klog.Errorf("failed to get provider information: %s", err)
 		return err
 	}
 
-	klog.Infof(fmt.Sprintf("reconciling object %s/%s for provider %s", obj.GetNamespace(), obj.GetName(), provider.ClusterID))
+	klog.Infof("reconciling object %s/%s for provider %s", obj.GetNamespace(), obj.GetName(), provider.ClusterID)
 
 	ns := obj.GetNamespace()
 	if ns != "" {
@@ -104,7 +104,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 		}
 
 		if obj, err = r.ensureDownstreamFinalizer(ctx, obj); err != nil {
-			klog.Errorf(err.Error())
+			klog.Errorln(err)
 			return err
 		}
 
@@ -151,7 +151,7 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 
 	// just in case, checking for finalizer
 	if obj, err = r.ensureDownstreamFinalizer(ctx, obj); err != nil {
-		klog.Errorf(err.Error())
+		klog.Errorln(err)
 		return err
 	}
 
