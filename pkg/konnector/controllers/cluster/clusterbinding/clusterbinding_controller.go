@@ -116,7 +116,7 @@ func NewController(
 						return provider, nil
 					}
 				}
-				return nil, fmt.Errorf(fmt.Sprintf("no provider registered for cluster id: %s in ClusterBinding controller", clusterID))
+				return nil, fmt.Errorf("no provider registered for cluster id: %s in ClusterBinding controller", clusterID)
 			},
 			getProviderSecret: func(provider *konnectormodels.ProviderInfo) (*corev1.Secret, error) {
 				cb, err := provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Lister().ClusterBindings(provider.Namespace).Get("cluster")
@@ -145,7 +145,7 @@ func NewController(
 			func(ns string) committer.Patcher[*v1alpha1.ClusterBinding] {
 				providerInfo, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
 				if err != nil {
-					klog.Warningf(err.Error())
+					klog.Warningln(err)
 					return nil
 				}
 				return providerInfo.BindClient.KubeBindV1alpha1().ClusterBindings(ns)

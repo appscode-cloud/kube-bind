@@ -97,17 +97,17 @@ func (r *reconciler) reconcile(ctx context.Context, obj *unstructured.Unstructur
 	if found {
 		newSecretRefName, err := r.ensureStatusSecret(ctx, provider, obj.DeepCopy(), downstream, newStatus, ns)
 		if err != nil {
-			klog.Errorf(err.Error())
+			klog.Errorln(err)
 			return err
 		}
 		if err := unstructured.SetNestedField(downstream.Object, newStatus, "status"); err != nil {
 			runtime.HandleError(err)
-			klog.Errorf(err.Error())
+			klog.Errorln(err)
 			return nil // nothing we can do here
 		}
 		if newSecretRefName != "" {
 			if err = unstructured.SetNestedField(downstream.Object, newSecretRefName, "status", "secretRef", "name"); err != nil {
-				klog.Errorf(err.Error())
+				klog.Errorln(err)
 				return err
 			}
 		}

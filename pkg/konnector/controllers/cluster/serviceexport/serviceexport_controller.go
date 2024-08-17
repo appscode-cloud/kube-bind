@@ -99,7 +99,7 @@ func NewController(
 			func(ns string) committer.Patcher[*v1alpha1.APIServiceExport] {
 				provider, err := konnectormodels.GetProviderInfoWithProviderNamespace(providerInfos, ns)
 				if err != nil {
-					klog.Errorf(fmt.Sprintf("failed to get any provider with namespace: %s", ns))
+					klog.Errorf("failed to get any provider with namespace: %s", ns)
 					return nil
 				}
 				return provider.BindClient.KubeBindV1alpha1().APIServiceExports(ns)

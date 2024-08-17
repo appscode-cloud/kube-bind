@@ -189,7 +189,7 @@ func (c *controller) enqueueServiceExport(logger klog.Logger, _ interface{}, pro
 		return
 	}
 
-	klog.Infof(fmt.Sprintf("binding interface size: %d", len(bindings)))
+	klog.Infof("binding interface size: %d", len(bindings))
 	fmt.Println(bindings)
 
 	for _, obj := range bindings {
