@@ -137,8 +137,7 @@ func (b *BindOptions) Validate() error {
 // redirectUrl generates the redirect url for success page
 // accepts string as bind.{host}
 func redirectUrl(host, user, cluster string) string {
-	_, domain, _ := strings.Cut(host, "bind.")
-	return fmt.Sprintf("https://db.%s/%s/%s", domain, user, cluster)
+	return fmt.Sprintf("https://%s/db/%s/%s", host, user, cluster)
 }
 
 // Run starts the binding process.
