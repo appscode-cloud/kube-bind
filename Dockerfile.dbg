@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-FROM ghcr.io/appscode/dlv:1.22.0
+FROM ghcr.io/appscode/dlv:1.23
 
 FROM {ARG_FROM}
 
