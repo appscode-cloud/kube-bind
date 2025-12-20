@@ -92,7 +92,7 @@ func NewBindOptions(streams genericclioptions.IOStreams) *BindOptions {
 func (b *BindOptions) AddCmdFlags(cmd *cobra.Command) {
 	b.flags = cmd.Flags()
 
-	b.Options.BindFlags(cmd)
+	b.BindFlags(cmd)
 	logsv1.AddFlags(b.Logs, cmd.Flags())
 	b.Print.AddFlags(cmd)
 
@@ -183,13 +183,13 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		if ns, err = kubeClient.CoreV1().Namespaces().Create(ctx, ns, metav1.CreateOptions{}); err != nil {
 			return err
 		} else {
-			fmt.Fprintf(b.Options.IOStreams.ErrOut, "📦 Created ace namespace.\n") // nolint: errcheck
+			_, _ = fmt.Fprintf(b.ErrOut, "📦 Created ace namespace.\n") // nolint: errcheck
 		}
 	}
 
 	auth := authenticator.NewLocalhostCallbackAuthenticator(redirectUrl(exportURL.Host, user, providerClusterName))
 	err = auth.Start()
-	fmt.Fprintf(b.Options.ErrOut, "\n\n")
+	_, _ = fmt.Fprintf(b.ErrOut, "\n\n")
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,7 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return err
 	}
 
-	fmt.Fprintf(b.IOStreams.ErrOut, "🔑 Successfully authenticated to %s\n", exportURL.String()) // nolint: errcheck
+	_, _ = fmt.Fprintf(b.ErrOut, "🔑 Successfully authenticated to %s\n", exportURL.String()) // nolint: errcheck
 
 	// verify the response
 	if gvk.GroupVersion() != v1alpha1.SchemeGroupVersion || gvk.Kind != "BindingResponse" {
@@ -254,15 +254,15 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 		return err
 	}
 	if created {
-		fmt.Fprintf(b.Options.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
+		_, _ = fmt.Fprintf(b.ErrOut, "🔒 Created secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
 	} else {
-		fmt.Fprintf(b.Options.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
+		_, _ = fmt.Fprintf(b.ErrOut, "🔒 Updated secret %s/%s for host %s, namespace %s\n", models.KonnectorNamespace, secret.Name, remoteHost, remoteNamespace)
 	}
 
 	// print the request in dry-run mode
 	if b.DryRun {
 		for _, request := range apiRequests {
-			if err = b.printer.PrintObj(request, b.IOStreams.Out); err != nil {
+			if err = b.printer.PrintObj(request, b.Out); err != nil {
 				return err
 			}
 		}
@@ -302,12 +302,12 @@ func (b *BindOptions) Run(ctx context.Context, urlCh chan<- string) error {
 
 		// TODO: support passing through the base options
 
-		fmt.Fprintf(b.Options.ErrOut, "🚀 Executing: %s %s\n", "kubectl bind", strings.Join(args, " ")) // nolint: errcheck
-		fmt.Fprintf(b.Options.ErrOut, "✨ Use \"-o yaml\" and \"--dry-run\" to get the APIServiceExportRequest.\n   and pass it to \"kubectl bind apiservice\" directly. Great for automation.\n")
+		_, _ = fmt.Fprintf(b.ErrOut, "🚀 Executing: %s %s\n", "kubectl bind", strings.Join(args, " ")) // nolint: errcheck
+		_, _ = fmt.Fprintf(b.ErrOut, "✨ Use \"-o yaml\" and \"--dry-run\" to get the APIServiceExportRequest.\n   and pass it to \"kubectl bind apiservice\" directly. Great for automation.\n")
 		command := exec.CommandContext(ctx, executable, args...)
 		command.Stdin = bytes.NewReader(bs)
-		command.Stdout = b.Options.Out
-		command.Stderr = b.Options.ErrOut
+		command.Stdout = b.Out
+		command.Stderr = b.ErrOut
 		if err := b.Runner(command); err != nil {
 			return err
 		}

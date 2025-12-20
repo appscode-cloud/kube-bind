@@ -24,7 +24,7 @@ const (
 	ByServiceBindingKubeconfigSecret = "byKubeconfigSecret"
 )
 
-func IndexServiceBindingByKubeconfigSecret(obj interface{}) ([]string, error) {
+func IndexServiceBindingByKubeconfigSecret(obj any) ([]string, error) {
 	binding, ok := obj.(*kubebindv1alpha1.APIServiceBinding)
 	if !ok {
 		return nil, nil

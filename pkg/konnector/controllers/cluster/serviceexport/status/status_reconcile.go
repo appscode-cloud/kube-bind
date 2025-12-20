@@ -37,7 +37,7 @@ type reconciler struct {
 	getConsumerObject          func(provider *konnectormodels.ProviderInfo, ns, name string) (*unstructured.Unstructured, error)
 	updateConsumerObjectStatus func(ctx context.Context, provider *konnectormodels.ProviderInfo, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 
-	ensureStatusSecret func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status interface{}, providerNS string) (string, error)
+	ensureStatusSecret func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status any, providerNS string) (string, error)
 
 	deleteProviderObject func(ctx context.Context, provider *konnectormodels.ProviderInfo, ns, name string) error
 }

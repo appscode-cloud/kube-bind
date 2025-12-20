@@ -56,7 +56,7 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 			for _, p := range existing.Spec.Providers {
 				if p.Kubeconfig.Namespace == models.KonnectorNamespace && p.Kubeconfig.Name == secretName {
 					hasSecret = true
-					fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Existing APIServiceBinding \"%s\" already has the secret \"%s\".\n", existing.Name, secretName) // nolint: errcheck
+					_, _ = fmt.Fprintf(b.Options.ErrOut, "✅ Existing APIServiceBinding \"%s\" already has the secret \"%s\".\n", existing.Name, secretName) // nolint: errcheck
 					break
 				}
 			}
@@ -65,7 +65,7 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 				continue
 			}
 
-			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
+			_, _ = fmt.Fprintf(b.Options.ErrOut, "✅ Updating existing APIServiceBinding %s.\n", existing.Name) // nolint: errcheck
 
 			existing.Spec.Providers = append(existing.Spec.Providers, v1alpha1.Provider{
 				Kubeconfig: v1alpha1.ClusterSecretKeyRef{
@@ -102,7 +102,7 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 		if err := wait.PollUntilContextCancel(context.Background(), 1*time.Second, false, func(ctx context.Context) (bool, error) {
 			if !first {
 				first = false
-				fmt.Fprint(b.Options.IOStreams.ErrOut, ".") // nolint: errcheck
+				fmt.Fprint(b.Options.ErrOut, ".") // nolint: errcheck
 			}
 			created, err := bindClient.KubeBindV1alpha1().APIServiceBindings().Create(ctx, &v1alpha1.APIServiceBinding{
 				ObjectMeta: metav1.ObjectMeta{
@@ -137,11 +137,11 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 			)
 			_, _ = bindClient.KubeBindV1alpha1().APIServiceBindings().UpdateStatus(ctx, created, metav1.UpdateOptions{}) // nolint:errcheck
 
-			fmt.Fprintf(b.Options.IOStreams.ErrOut, "✅ Created APIServiceBinding %s.%s\n", resource.Resource, resource.Group) // nolint: errcheck
+			_, _ = fmt.Fprintf(b.Options.ErrOut, "✅ Created APIServiceBinding %s.%s\n", resource.Resource, resource.Group) // nolint: errcheck
 			bindings = append(bindings, created)
 			return true, nil
 		}); err != nil {
-			fmt.Fprintln(b.Options.IOStreams.ErrOut, "") // nolint: errcheck
+			_, _ = fmt.Fprintln(b.Options.ErrOut, "") // nolint: errcheck
 			return nil, err
 		}
 	}

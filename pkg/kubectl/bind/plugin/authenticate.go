@@ -70,9 +70,10 @@ func getProvider(url string) (*kubebindv1alpha1.BindingProvider, error) {
 }
 
 func validateProviderVersion(providerVersion string) error {
-	if providerVersion == "" {
+	switch providerVersion {
+	case "":
 		return fmt.Errorf("provider version %q is empty, please update the backend to v0.3.0+", providerVersion)
-	} else if providerVersion == "v0.0.0" || providerVersion == "v0.0.0-master+$Format:%H$" {
+	case "v0.0.0", "v0.0.0-master+$Format:%H$":
 		// unversioned, development version
 		return nil
 	}
@@ -122,14 +123,14 @@ func (b *BindOptions) authenticate(provider *kubebindv1alpha1.BindingProvider, c
 	values.Add("o", user)
 	u.RawQuery = values.Encode()
 
-	fmt.Fprintf(b.Options.ErrOut, "\nTo authenticate, visit in your browser:\n\n\t%s\n", u.String()) // nolint: errcheck
+	_, _ = fmt.Fprintf(b.ErrOut, "\nTo authenticate, visit in your browser:\n\n\t%s\n", u.String()) // nolint: errcheck
 
 	// TODO(sttts): callback backend, not 127.0.0.1
 	if false {
-		fmt.Fprintf(b.Options.ErrOut, "\n\nor scan the QRCode below:")
+		_, _ = fmt.Fprintf(b.ErrOut, "\n\nor scan the QRCode below:")
 		config := qrterminal.Config{
 			Level:     qrterminal.L,
-			Writer:    b.Options.ErrOut,
+			Writer:    b.ErrOut,
 			BlackChar: qrterminal.WHITE,
 			WhiteChar: qrterminal.BLACK,
 			QuietZone: 2,

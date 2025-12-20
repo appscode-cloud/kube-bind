@@ -109,13 +109,13 @@ func (inf *DynamicMultiNamespaceInformer) Start(ctx context.Context) {
 	defer logger.Info("Shutting down controller")
 
 	inf.serviceNamespaceInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			inf.enqueueServiceNamespace(obj)
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			inf.enqueueServiceNamespace(newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			inf.enqueueServiceNamespace(obj)
 		},
 	})
@@ -131,7 +131,7 @@ func (inf *DynamicMultiNamespaceInformer) Start(ctx context.Context) {
 	}()
 }
 
-func (inf *DynamicMultiNamespaceInformer) enqueueServiceNamespace(obj interface{}) {
+func (inf *DynamicMultiNamespaceInformer) enqueueServiceNamespace(obj any) {
 	logger := klog.FromContext(context.Background()).WithValues("controller", controllerName, "gvr", inf.gvr)
 
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)

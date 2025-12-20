@@ -86,7 +86,11 @@ func validateKubeFinalizerName(stringValue string, fldPath *field.Path) []string
 	}
 	if len(strings.Split(stringValue, "/")) == 1 {
 		if !standardFinalizers.Has(stringValue) {
-			allWarnings = append(allWarnings, fmt.Sprintf("%s: %q: prefer a domain-qualified finalizer name to avoid accidental conflicts with other finalizer writers", fldPath.String(), stringValue))
+			if strings.Contains(stringValue, ".") {
+				allWarnings = append(allWarnings, fmt.Sprintf("%s: %q: prefer a domain-qualified finalizer name including a path (/) to avoid accidental conflicts with other finalizer writers", fldPath.String(), stringValue))
+			} else {
+				allWarnings = append(allWarnings, fmt.Sprintf("%s: %q: prefer a domain-qualified finalizer name to avoid accidental conflicts with other finalizer writers", fldPath.String(), stringValue))
+			}
 		}
 	}
 	return allWarnings
@@ -101,7 +105,7 @@ func (a customResourceValidator) ValidateStatusUpdate(ctx context.Context, obj, 
 
 	allErrs = append(allErrs, validation.ValidateObjectMetaAccessorUpdate(obj, old, field.NewPath("metadata"))...)
 	if status, hasStatus := obj.UnstructuredContent()["status"]; hasStatus {
-		allErrs = append(allErrs, apiextensionsvalidation.ValidateCustomResourceUpdate(nil, status, old.UnstructuredContent()["status"], a.statusSchemaValidator)...)
+		allErrs = append(allErrs, apiextensionsvalidation.ValidateCustomResourceUpdate(field.NewPath("status"), status, old.UnstructuredContent()["status"], a.statusSchemaValidator)...)
 	}
 	allErrs = append(allErrs, a.ValidateScaleStatus(ctx, obj, scale)...)
 

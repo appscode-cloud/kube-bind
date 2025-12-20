@@ -239,7 +239,7 @@ func (b *BindAPIServiceOptions) getRequestManifest() ([]byte, error) {
 		}
 		return body, nil
 	} else if b.file == "-" {
-		body, err := io.ReadAll(b.Options.IOStreams.In)
+		body, err := io.ReadAll(b.Options.In)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read from stdin: %w", err)
 		}

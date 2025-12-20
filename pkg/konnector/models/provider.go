@@ -63,7 +63,7 @@ func GetProviderInfoWithProviderNamespace(providerInfos []*ProviderInfo, provide
 	return nil, fmt.Errorf("no provider information found with namespace: %s", providerNamespace)
 }
 
-func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
+func IsMatchProvider(provider *ProviderInfo, obj any) bool {
 	unstr, found := obj.(*unstructured.Unstructured)
 	if !found {
 		return false
@@ -73,7 +73,7 @@ func IsMatchProvider(provider *ProviderInfo, obj interface{}) bool {
 	return annos[AnnotationProviderClusterID] == provider.ClusterID
 }
 
-func GetProviderFromObjectInterface(providerInfos []*ProviderInfo, obj interface{}) (*ProviderInfo, error) {
+func GetProviderFromObjectInterface(providerInfos []*ProviderInfo, obj any) (*ProviderInfo, error) {
 	unstr, found := obj.(*unstructured.Unstructured)
 	if !found {
 		return nil, fmt.Errorf("failed to convert interface into unstructured")

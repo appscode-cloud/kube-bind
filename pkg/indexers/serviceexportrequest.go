@@ -25,26 +25,26 @@ const (
 	ServiceExportRequestByServiceExport = "ServiceExportRequestByServiceExport"
 )
 
-func IndexServiceExportRequestByGroupResource(obj interface{}) ([]string, error) {
+func IndexServiceExportRequestByGroupResource(obj any) ([]string, error) {
 	sbr, ok := obj.(*kubebindv1alpha1.APIServiceExportRequest)
 	if !ok {
 		return nil, nil
 	}
 	keys := []string{}
 	for _, gr := range sbr.Spec.Resources {
-		keys = append(keys, gr.GroupResource.Resource+"."+gr.GroupResource.Group)
+		keys = append(keys, gr.Resource+"."+gr.Group)
 	}
 	return keys, nil
 }
 
-func IndexServiceExportRequestByServiceExport(obj interface{}) ([]string, error) {
+func IndexServiceExportRequestByServiceExport(obj any) ([]string, error) {
 	sbr, ok := obj.(*kubebindv1alpha1.APIServiceExportRequest)
 	if !ok {
 		return nil, nil
 	}
 	keys := []string{}
 	for _, gr := range sbr.Spec.Resources {
-		keys = append(keys, sbr.Namespace+"/"+gr.GroupResource.Resource+"."+gr.GroupResource.Group)
+		keys = append(keys, sbr.Namespace+"/"+gr.Resource+"."+gr.Group)
 	}
 	return keys, nil
 }

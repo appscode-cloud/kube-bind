@@ -72,21 +72,21 @@ func NewDynamicInformer[L any](informer StaticInformer[L]) Informer[L] {
 	}
 
 	_, err := informer.Informer().AddEventHandler(cache.ResourceEventHandlerDetailedFuncs{
-		AddFunc: func(obj interface{}, isInInitialList bool) {
+		AddFunc: func(obj any, isInInitialList bool) {
 			di.sharedIndexInformer.lock.RLock()
 			defer di.sharedIndexInformer.lock.RUnlock()
 			for _, h := range di.sharedIndexInformer.handlers {
 				h.OnAdd(obj, isInInitialList)
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			di.sharedIndexInformer.lock.RLock()
 			defer di.sharedIndexInformer.lock.RUnlock()
 			for _, h := range di.sharedIndexInformer.handlers {
 				h.OnUpdate(oldObj, newObj)
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			di.sharedIndexInformer.lock.RLock()
 			defer di.sharedIndexInformer.lock.RUnlock()
 			for _, h := range di.sharedIndexInformer.handlers {

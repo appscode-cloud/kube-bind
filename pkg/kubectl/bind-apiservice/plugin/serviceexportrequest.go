@@ -94,7 +94,7 @@ func (b *BindAPIServiceOptions) printTable(ctx context.Context, config *rest.Con
 
 	tableConfig := rest.CopyConfig(config)
 	tableConfig.APIPath = "/apis"
-	tableConfig.ContentConfig.AcceptContentTypes = fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName)
+	tableConfig.AcceptContentTypes = fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName)
 	tableConfig.GroupVersion = &v1alpha1.SchemeGroupVersion
 	scheme := runtime.NewScheme()
 	if err := metav1.AddMetaToScheme(scheme); err != nil {
@@ -118,5 +118,5 @@ func (b *BindAPIServiceOptions) printTable(ctx context.Context, config *rest.Con
 			bindingsTable.Rows = append(bindingsTable.Rows, singularTable.Rows...)
 		}
 	}
-	return printer.PrintObj(&bindingsTable, b.Options.IOStreams.Out)
+	return printer.PrintObj(&bindingsTable, b.Options.Out)
 }
