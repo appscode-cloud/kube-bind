@@ -15,7 +15,7 @@
 
 FROM {ARG_FROM}
 
-LABEL org.opencontainers.image.source https://github.com/bytebuilders/kube-bind
+LABEL org.opencontainers.image.source https://github.com/appscode-cloud/kube-bind
 
 RUN set -x \
   && apk add --update --upgrade --no-cache pcre2 ca-certificates tzdata \
