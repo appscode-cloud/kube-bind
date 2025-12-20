@@ -28,7 +28,7 @@ const (
 	CRDByServiceBinding = "CRDByServiceBinding"
 )
 
-func IndexCRDByServiceBinding(obj interface{}) ([]string, error) {
+func IndexCRDByServiceBinding(obj any) ([]string, error) {
 	crd, ok := obj.(*apiextensionsv1.CustomResourceDefinition)
 	if !ok {
 		return nil, nil

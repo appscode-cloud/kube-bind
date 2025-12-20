@@ -53,7 +53,9 @@ func NewController(
 	crdInformer dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister],
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -113,13 +115,13 @@ func NewController(
 		})
 
 		_, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueServiceExport(logger, obj)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueServiceExport(logger, newObj)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueServiceExport(logger, obj)
 			},
 		})
@@ -138,7 +140,7 @@ type (
 
 // controller reconciles ServiceExportResources and starts and stop syncers.
 type controller struct {
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	serviceBindingInformer dynamic.Informer[bindlisters.APIServiceBindingLister]
 	crdInformer            dynamic.Informer[apiextensionslisters.CustomResourceDefinitionLister]
@@ -150,7 +152,7 @@ type controller struct {
 	commit CommitFunc
 }
 
-func (c *controller) enqueueServiceExport(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueServiceExport(logger klog.Logger, obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -161,7 +163,7 @@ func (c *controller) enqueueServiceExport(logger klog.Logger, obj interface{}) {
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueServiceBinding(logger klog.Logger, obj any) {
 	binding, ok := obj.(*v1alpha1.APIServiceBinding)
 	if !ok {
 		runtime.HandleError(fmt.Errorf("unexpected type %T", obj))
@@ -175,7 +177,7 @@ func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) 
 	}
 }
 
-func (c *controller) enqueueCRD(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueCRD(logger klog.Logger, obj any) {
 	crdKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -200,25 +202,25 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer logger.Info("Shutting down controller")
 
 	c.serviceBindingInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueServiceBinding(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueServiceBinding(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueServiceBinding(logger, obj)
 		},
 	})
 
 	c.crdInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueCRD(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueCRD(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueCRD(logger, obj)
 		},
 	})

@@ -59,7 +59,9 @@ func NewController(
 	consumerSecretInformer coreinformers.SecretInformer,
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -155,13 +157,13 @@ func NewController(
 
 	for _, provider := range providerInfos {
 		_, err = provider.BindInformer.KubeBind().V1alpha1().ClusterBindings().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueClusterBinding(logger, obj)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueClusterBinding(logger, newObj)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueClusterBinding(logger, obj)
 			},
 		})
@@ -170,13 +172,13 @@ func NewController(
 		}
 
 		_, err = provider.KubeInformer.Core().V1().Secrets().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueProviderSecret(logger, obj, c.providerInfos)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueProviderSecret(logger, newObj, c.providerInfos)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueProviderSecret(logger, obj, c.providerInfos)
 			},
 		})
@@ -185,10 +187,10 @@ func NewController(
 		}
 
 		_, err = provider.BindInformer.KubeBind().V1alpha1().APIServiceExports().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueServiceExport(logger, obj)
 			},
-			UpdateFunc: func(old, newObj interface{}) {
+			UpdateFunc: func(old, newObj any) {
 				oldExport, ok := old.(*v1alpha1.APIServiceExport)
 				if !ok {
 					return
@@ -202,7 +204,7 @@ func NewController(
 				}
 				c.enqueueServiceExport(logger, newObj)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueServiceExport(logger, obj)
 			},
 		})
@@ -211,13 +213,13 @@ func NewController(
 		}
 
 		_, err = consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueConsumerSecret(logger, newObj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueConsumerSecret(logger, obj, provider.Namespace, provider.ConsumerSecretRefKey)
 			},
 		})
@@ -236,7 +238,7 @@ type (
 
 // controller reconciles ClusterBindings on the service provider cluster, including heartbeating.
 type controller struct {
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	consumerBindClient bindclient.Interface
 	consumerKubeClient kubernetesclient.Interface
@@ -250,7 +252,7 @@ type controller struct {
 	commit CommitFunc
 }
 
-func (c *controller) enqueueClusterBinding(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueClusterBinding(logger klog.Logger, obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -261,7 +263,7 @@ func (c *controller) enqueueClusterBinding(logger klog.Logger, obj interface{}) 
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj interface{}, providerNamespace, consumerSecretRefKey string) {
+func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj any, providerNamespace, consumerSecretRefKey string) {
 	secretKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -275,7 +277,7 @@ func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj interface{}, 
 	}
 }
 
-func (c *controller) enqueueProviderSecret(logger klog.Logger, obj interface{}, providerInfos []*konnectormodels.ProviderInfo) {
+func (c *controller) enqueueProviderSecret(logger klog.Logger, obj any, providerInfos []*konnectormodels.ProviderInfo) {
 	secretKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -316,7 +318,7 @@ func (c *controller) enqueueProviderSecret(logger klog.Logger, obj interface{}, 
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueServiceExport(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueServiceExport(logger klog.Logger, obj any) {
 	seKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)

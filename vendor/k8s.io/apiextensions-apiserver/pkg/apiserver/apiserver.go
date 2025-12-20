@@ -40,7 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apiserver/pkg/endpoints/discovery"
 	"k8s.io/apiserver/pkg/endpoints/discovery/aggregated"
 	genericregistry "k8s.io/apiserver/pkg/registry/generic"
@@ -118,12 +117,6 @@ func (cfg *Config) Complete() CompletedConfig {
 	}
 
 	c.GenericConfig.EnableDiscovery = false
-	if c.GenericConfig.Version == nil {
-		c.GenericConfig.Version = &version.Info{
-			Major: "0",
-			Minor: "1",
-		}
-	}
 
 	return CompletedConfig{&c}
 }
@@ -226,11 +219,11 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		crdHandler,
 	)
 
-	s.GenericAPIServer.AddPostStartHookOrDie("start-apiextensions-informers", func(context genericapiserver.PostStartHookContext) error {
-		s.Informers.Start(context.StopCh)
+	s.GenericAPIServer.AddPostStartHookOrDie("start-apiextensions-informers", func(hookContext genericapiserver.PostStartHookContext) error {
+		s.Informers.Start(hookContext.Done())
 		return nil
 	})
-	s.GenericAPIServer.AddPostStartHookOrDie("start-apiextensions-controllers", func(context genericapiserver.PostStartHookContext) error {
+	s.GenericAPIServer.AddPostStartHookOrDie("start-apiextensions-controllers", func(hookContext genericapiserver.PostStartHookContext) error {
 		// OpenAPIVersionedService and StaticOpenAPISpec are populated in generic apiserver PrepareRun().
 		// Together they serve the /openapi/v2 endpoint on a generic apiserver. A generic apiserver may
 		// choose to not enable OpenAPI by having null openAPIConfig, and thus OpenAPIVersionedService
@@ -238,25 +231,25 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 		if s.GenericAPIServer.StaticOpenAPISpec != nil {
 			if s.GenericAPIServer.OpenAPIVersionedService != nil {
 				openapiController := openapicontroller.NewController(s.Informers.Apiextensions().V1().CustomResourceDefinitions())
-				go openapiController.Run(s.GenericAPIServer.StaticOpenAPISpec, s.GenericAPIServer.OpenAPIVersionedService, context.StopCh)
+				go openapiController.Run(s.GenericAPIServer.StaticOpenAPISpec, s.GenericAPIServer.OpenAPIVersionedService, hookContext.Done())
 			}
 
 			if s.GenericAPIServer.OpenAPIV3VersionedService != nil {
 				openapiv3Controller := openapiv3controller.NewController(s.Informers.Apiextensions().V1().CustomResourceDefinitions())
-				go openapiv3Controller.Run(s.GenericAPIServer.OpenAPIV3VersionedService, context.StopCh)
+				go openapiv3Controller.Run(s.GenericAPIServer.OpenAPIV3VersionedService, hookContext.Done())
 			}
 		}
 
-		go namingController.Run(context.StopCh)
-		go establishingController.Run(context.StopCh)
-		go nonStructuralSchemaController.Run(5, context.StopCh)
-		go apiApprovalController.Run(5, context.StopCh)
-		go finalizingController.Run(5, context.StopCh)
+		go namingController.Run(hookContext.Done())
+		go establishingController.Run(hookContext.Done())
+		go nonStructuralSchemaController.Run(5, hookContext.Done())
+		go apiApprovalController.Run(5, hookContext.Done())
+		go finalizingController.Run(5, hookContext.Done())
 
 		discoverySyncedCh := make(chan struct{})
-		go discoveryController.Run(context.StopCh, discoverySyncedCh)
+		go discoveryController.Run(hookContext.Done(), discoverySyncedCh)
 		select {
-		case <-context.StopCh:
+		case <-hookContext.Done():
 		case <-discoverySyncedCh:
 		}
 
@@ -272,7 +265,7 @@ func (c completedConfig) New(delegationTarget genericapiserver.DelegationTarget)
 				return true, nil
 			}
 			return false, nil
-		}, context.StopCh)
+		}, context.Done())
 	})
 
 	return s, nil

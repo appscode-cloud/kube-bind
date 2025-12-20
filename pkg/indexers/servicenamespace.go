@@ -24,7 +24,7 @@ const (
 	ServiceNamespaceByNamespace = "ServiceNamespaceByNamespace"
 )
 
-func IndexServiceNamespaceByNamespace(obj interface{}) ([]string, error) {
+func IndexServiceNamespaceByNamespace(obj any) ([]string, error) {
 	sn, ok := obj.(*kubebindv1alpha1.APIServiceNamespace)
 	if !ok || sn.Status.Namespace == "" {
 		return nil, nil

@@ -59,7 +59,9 @@ func NewController(
 	consumerDynamicInformer informers.GenericInformer,
 	providerInfos []*konnectormodels.ProviderInfo,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -149,7 +151,7 @@ func NewController(
 				}
 				return updated, nil
 			},
-			ensureStatusSecret: func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status interface{}, providerNS string) (string, error) {
+			ensureStatusSecret: func(ctx context.Context, provider *konnectormodels.ProviderInfo, upstream, downstream *unstructured.Unstructured, status any, providerNS string) (string, error) {
 				upSecretName, found, err := unstructured.NestedString(upstream.Object, "status", "secretRef", "name")
 				if err != nil {
 					return "", err
@@ -216,13 +218,13 @@ func NewController(
 	}
 
 	_, err = consumerDynamicInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueConsumer(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueConsumer(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueConsumer(logger, obj)
 		},
 	})
@@ -232,13 +234,13 @@ func NewController(
 
 	for _, provider := range c.providerInfos {
 		provider.ProviderDynamicInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueProvider(logger, provider, obj)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueProvider(logger, provider, newObj)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueProvider(logger, provider, obj)
 			},
 		})
@@ -249,7 +251,7 @@ func NewController(
 
 // controller reconciles status of upstream to downstream.
 type controller struct {
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	gvr schema.GroupVersionResource
 
@@ -263,7 +265,7 @@ type controller struct {
 	reconciler
 }
 
-func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
+func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj any) {
 	if !konnectormodels.IsMatchProvider(provider, obj) {
 		return
 	}
@@ -303,7 +305,7 @@ func (c *controller) enqueueProvider(logger klog.Logger, provider *konnectormode
 	c.queue.Add(provider.ClusterID + "/" + key)
 }
 
-func (c *controller) enqueueConsumer(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueConsumer(logger klog.Logger, obj any) {
 	provider, err := konnectormodels.GetProviderFromObjectInterface(c.providerInfos, obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -343,7 +345,7 @@ func (c *controller) enqueueConsumer(logger klog.Logger, obj interface{}) {
 	c.queue.Add(provider.ClusterID + "/" + upstreamKey)
 }
 
-func (c *controller) enqueueServiceNamespace(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj interface{}) {
+func (c *controller) enqueueServiceNamespace(logger klog.Logger, provider *konnectormodels.ProviderInfo, obj any) {
 	snKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -393,13 +395,13 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer logger.Info("Shutting down controller")
 	for _, provider := range c.providerInfos {
 		provider.DynamicServiceNamespaceInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueServiceNamespace(logger, provider, obj)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueServiceNamespace(logger, provider, newObj)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueServiceNamespace(logger, provider, obj)
 			},
 		})

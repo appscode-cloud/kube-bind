@@ -24,7 +24,7 @@ const (
 	ServiceExportByCustomResourceDefinition = "serviceExportByCustomResourceDefinition"
 )
 
-func IndexServiceExportByCustomResourceDefinition(obj interface{}) ([]string, error) {
+func IndexServiceExportByCustomResourceDefinition(obj any) ([]string, error) {
 	export, ok := obj.(*v1alpha1.APIServiceExport)
 	if !ok {
 		return nil, nil

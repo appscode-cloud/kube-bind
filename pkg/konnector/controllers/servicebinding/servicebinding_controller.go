@@ -51,7 +51,9 @@ func NewController(
 	serviceBindingInformer bindinformers.APIServiceBindingInformer,
 	consumerSecretInformer coreinformers.SecretInformer,
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 
@@ -90,13 +92,13 @@ func NewController(
 	})
 
 	_, err = serviceBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueServiceBinding(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueServiceBinding(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueServiceBinding(logger, obj)
 		},
 	})
@@ -105,13 +107,13 @@ func NewController(
 	}
 
 	_, err = consumerSecretInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueConsumerSecret(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueConsumerSecret(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueConsumerSecret(logger, obj)
 		},
 	})
@@ -131,7 +133,7 @@ type (
 // here as an individual controller because the cluster controller is not running
 // if the secret is invalid.
 type controller struct {
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	serviceBindingLister  bindlisters.APIServiceBindingLister
 	serviceBindingIndexer cache.Indexer
@@ -143,7 +145,7 @@ type controller struct {
 	commit CommitFunc
 }
 
-func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueServiceBinding(logger klog.Logger, obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -154,7 +156,7 @@ func (c *controller) enqueueServiceBinding(logger klog.Logger, obj interface{}) 
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueConsumerSecret(logger klog.Logger, obj any) {
 	secretKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)

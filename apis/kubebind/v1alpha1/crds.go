@@ -22,22 +22,22 @@ import (
 	"kmodules.xyz/client-go/apiextensions"
 )
 
-func (_ APIServiceExport) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
+func (APIServiceExport) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
 	return crds.MustCustomResourceDefinition(SchemeGroupVersion.WithResource(ResourceAPIServiceExports))
 }
 
-func (_ APIServiceBinding) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
+func (APIServiceBinding) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
 	return crds.MustCustomResourceDefinition(SchemeGroupVersion.WithResource(ResourceAPIServiceBindings))
 }
 
-func (_ APIServiceExportRequest) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
+func (APIServiceExportRequest) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
 	return crds.MustCustomResourceDefinition(SchemeGroupVersion.WithResource(ResourceAPIServiceExportRequests))
 }
 
-func (_ APIServiceNamespace) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
+func (APIServiceNamespace) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
 	return crds.MustCustomResourceDefinition(SchemeGroupVersion.WithResource(ResourceAPIServiceNamespaces))
 }
 
-func (_ ClusterBinding) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
+func (ClusterBinding) CustomResourceDefinition() *apiextensions.CustomResourceDefinition {
 	return crds.MustCustomResourceDefinition(SchemeGroupVersion.WithResource(ResourceClusterBindings))
 }

@@ -48,7 +48,9 @@ func NewController(
 	providerInfos []*konnectormodels.ProviderInfo,
 	namespaceInformer dynamic.Informer[corelisters.NamespaceLister],
 ) (*controller, error) {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), controllerName)
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
+		Name: controllerName,
+	})
 
 	logger := klog.Background().WithValues("controller", controllerName)
 	for _, provider := range providerInfos {
@@ -92,13 +94,13 @@ func NewController(
 
 	for _, provider := range providerInfos {
 		_, err := provider.BindInformer.KubeBind().V1alpha1().APIServiceNamespaces().Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				c.enqueueServiceNamespace(logger, obj)
 			},
-			UpdateFunc: func(_, newObj interface{}) {
+			UpdateFunc: func(_, newObj any) {
 				c.enqueueServiceNamespace(logger, newObj)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				c.enqueueServiceNamespace(logger, obj)
 			},
 		})
@@ -113,7 +115,7 @@ func NewController(
 // controller reconciles ServiceNamespaces by creating a Namespace for each, and deleting it if
 // the APIServiceNamespace is deleted.
 type controller struct {
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	namespaceInformer dynamic.Informer[corelisters.NamespaceLister]
 
@@ -124,7 +126,7 @@ type controller struct {
 	deleteServiceNamespace func(ctx context.Context, ns, name string) error
 }
 
-func (c *controller) enqueueServiceNamespace(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueServiceNamespace(logger klog.Logger, obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -135,7 +137,7 @@ func (c *controller) enqueueServiceNamespace(logger klog.Logger, obj interface{}
 	c.queue.Add(key)
 }
 
-func (c *controller) enqueueNamespace(logger klog.Logger, obj interface{}) {
+func (c *controller) enqueueNamespace(logger klog.Logger, obj any) {
 	nsKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -160,13 +162,13 @@ func (c *controller) Start(ctx context.Context, numThreads int) {
 	defer logger.Info("Shutting down controller")
 
 	c.namespaceInformer.Informer().AddDynamicEventHandler(ctx, controllerName, cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueNamespace(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueNamespace(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueNamespace(logger, obj)
 		},
 	})

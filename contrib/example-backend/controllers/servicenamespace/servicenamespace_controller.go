@@ -62,7 +62,7 @@ func NewController(
 	roleInformer rbacinformers.RoleInformer,
 	roleBindingInformer rbacinformers.RoleBindingInformer,
 ) (*Controller, error) {
-	queue := workqueue.NewRateLimitingQueueWithConfig(workqueue.DefaultControllerRateLimiter(), workqueue.RateLimitingQueueConfig{
+	queue := workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
 		Name: controllerName,
 	})
 
@@ -138,13 +138,13 @@ func NewController(
 	})
 
 	_, err = namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueNamespace(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueNamespace(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueNamespace(logger, obj)
 		},
 	})
@@ -153,13 +153,13 @@ func NewController(
 	}
 
 	_, err = serviceNamespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueServiceNamespace(logger, obj)
 		},
-		UpdateFunc: func(_, newObj interface{}) {
+		UpdateFunc: func(_, newObj any) {
 			c.enqueueServiceNamespace(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueServiceNamespace(logger, obj)
 		},
 	})
@@ -168,7 +168,7 @@ func NewController(
 	}
 
 	_, err = clusterBindingInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueClusterBinding(logger, obj)
 		},
 	})
@@ -177,10 +177,10 @@ func NewController(
 	}
 
 	_, err = serviceExportInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			c.enqueueServiceExport(logger, obj)
 		},
-		UpdateFunc: func(old, newObj interface{}) {
+		UpdateFunc: func(old, newObj any) {
 			oldExport, ok := old.(*v1alpha1.APIServiceExport)
 			if !ok {
 				return
@@ -194,7 +194,7 @@ func NewController(
 			}
 			c.enqueueServiceExport(logger, newObj)
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			c.enqueueServiceExport(logger, obj)
 		},
 	})
@@ -213,7 +213,7 @@ type (
 // Controller reconciles ServiceNamespaces by creating a Namespace for each, and deleting it if
 // the APIServiceNamespace is deleted.
 type Controller struct {
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[any]
 
 	bindClient bindclient.Interface
 	kubeClient kubernetesclient.Interface
@@ -241,7 +241,7 @@ type Controller struct {
 	commit CommitFunc
 }
 
-func (c *Controller) enqueueServiceNamespace(logger klog.Logger, obj interface{}) {
+func (c *Controller) enqueueServiceNamespace(logger klog.Logger, obj any) {
 	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -252,7 +252,7 @@ func (c *Controller) enqueueServiceNamespace(logger klog.Logger, obj interface{}
 	c.queue.Add(key)
 }
 
-func (c *Controller) enqueueClusterBinding(logger klog.Logger, obj interface{}) {
+func (c *Controller) enqueueClusterBinding(logger klog.Logger, obj any) {
 	cbKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -280,7 +280,7 @@ func (c *Controller) enqueueClusterBinding(logger klog.Logger, obj interface{}) 
 	}
 }
 
-func (c *Controller) enqueueServiceExport(logger klog.Logger, obj interface{}) {
+func (c *Controller) enqueueServiceExport(logger klog.Logger, obj any) {
 	seKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
@@ -308,7 +308,7 @@ func (c *Controller) enqueueServiceExport(logger klog.Logger, obj interface{}) {
 	}
 }
 
-func (c *Controller) enqueueNamespace(logger klog.Logger, obj interface{}) {
+func (c *Controller) enqueueNamespace(logger klog.Logger, obj any) {
 	nsKey, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
 		runtime.HandleError(err)
