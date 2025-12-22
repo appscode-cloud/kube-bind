@@ -533,3 +533,9 @@ gen-krew-manifest:
       -e 's|{SHA256SUM_LINUX_ARM64}|$(shell sha256sum bin/$(BIN)-linux-arm64.tar.gz | cut -d' ' -f1)|g' \
       -e 's|{SHA256SUM_WINDOWS_AMD64}|$(shell sha256sum bin/$(BIN)-windows-amd64.zip | cut -d' ' -f1)|g' \
       hack/krew/plugin.yaml
+
+.PHONY: docker-certify-redhat
+docker-certify-redhat:
+  @preflight check container $(IMAGE):$(VERSION_UBI) \
+    --submit \
+    --certification-component-id=6947cc58defe256e1c3bc712
