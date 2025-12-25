@@ -536,6 +536,6 @@ gen-krew-manifest:
 
 .PHONY: docker-certify-redhat
 docker-certify-redhat:
-  @preflight check container $(IMAGE):$(VERSION_UBI) \
-    --submit \
-    --certification-component-id=6947cc58defe256e1c3bc712
+	@preflight check container $(IMAGE):$(VERSION_UBI) \
+		--submit \
+		--certification-component-id=6947cc58defe256e1c3bc712
