@@ -24,7 +24,7 @@ BIN      := $(if $(EXTBIN),$(EXTBIN),kubectl-connect)
 COMPRESS ?= no
 
 CRD_OPTIONS          ?= "crd:crdVersions={v1},allowDangerousTypes=true,generateEmbeddedObjectMeta=true"
-CODE_GENERATOR_IMAGE ?= ghcr.io/appscode/gengo:release-1.29
+CODE_GENERATOR_IMAGE ?= ghcr.io/appscode/gengo:release-1.32
 API_GROUPS           ?= kubebind:v1alpha1
 
 # Where to push the docker image.
