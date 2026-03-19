@@ -19,9 +19,9 @@ require (
 	github.com/spf13/pflag v1.0.9
 	github.com/stretchr/testify v1.11.1
 	github.com/vmihailenco/msgpack/v4 v4.3.13
-	golang.org/x/oauth2 v0.33.0
+	golang.org/x/oauth2 v0.34.0
 	gomodules.xyz/x v0.0.17
-	google.golang.org/grpc v1.75.0
+	google.golang.org/grpc v1.79.3
 	gopkg.in/headzoo/surf.v1 v1.0.1
 	k8s.io/api v0.34.3
 	k8s.io/apiextensions-apiserver v0.34.3
@@ -57,7 +57,7 @@ require (
 )
 
 require (
-	cel.dev/expr v0.24.0 // indirect
+	cel.dev/expr v0.25.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
@@ -131,21 +131,21 @@ require (
 	go.etcd.io/etcd/api/v3 v3.6.4 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.6.4 // indirect
 	go.etcd.io/etcd/client/v3 v3.6.4 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect
-	go.opentelemetry.io/otel v1.37.0 // indirect
+	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.34.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.34.0 // indirect
-	go.opentelemetry.io/otel/metric v1.37.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
-	go.opentelemetry.io/otel/trace v1.37.0 // indirect
+	go.opentelemetry.io/otel/metric v1.39.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.39.0 // indirect
+	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
-	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
@@ -155,8 +155,8 @@ require (
 	gomodules.xyz/mergo v0.3.13 // indirect
 	gomodules.xyz/pointer v0.1.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
