@@ -86,7 +86,8 @@ func (s *Prepared) OptionallyStartInformers(ctx context.Context) {
 	kubeBindSynced := s.Config.BindInformers.WaitForCacheSync(ctx.Done())
 	apiextensionsSynced := s.Config.ApiextensionsInformers.WaitForCacheSync(ctx.Done())
 
-	logger.Info("local informers are synced",
+	logger.Info(
+		"local informers are synced",
 		"kubeSynced", fmt.Sprintf("%v", kubeSynced),
 		"kubeBindSynced", fmt.Sprintf("%v", kubeBindSynced),
 		"apiextensionsSynced", fmt.Sprintf("%v", apiextensionsSynced),

@@ -77,21 +77,24 @@ func (r *reconciler) reconcile(ctx context.Context, clusterBinding *v1alpha1.Clu
 
 func (r *reconciler) ensureClusterBindingConditions(clusterBinding *v1alpha1.ClusterBinding) {
 	if clusterBinding.Status.LastHeartbeatTime.IsZero() {
-		conditions.MarkFalse(clusterBinding,
+		conditions.MarkFalse(
+			clusterBinding,
 			v1alpha1.ClusterBindingConditionHealthy,
 			"FirstHeartbeatPending",
 			conditionsapi.ConditionSeverityInfo,
 			"Waiting for first heartbeat",
 		)
 	} else if clusterBinding.Status.HeartbeatInterval.Duration == 0 {
-		conditions.MarkFalse(clusterBinding,
+		conditions.MarkFalse(
+			clusterBinding,
 			v1alpha1.ClusterBindingConditionHealthy,
 			"HeartbeatIntervalMissing",
 			conditionsapi.ConditionSeverityInfo,
 			"Waiting for consumer cluster reporting its heartbeat interval",
 		)
 	} else if ago := time.Since(clusterBinding.Status.LastHeartbeatTime.Time); ago > clusterBinding.Status.HeartbeatInterval.Duration*2 {
-		conditions.MarkFalse(clusterBinding,
+		conditions.MarkFalse(
+			clusterBinding,
 			v1alpha1.ClusterBindingConditionHealthy,
 			"HeartbeatTimeout",
 			conditionsapi.ConditionSeverityError,
@@ -100,14 +103,16 @@ func (r *reconciler) ensureClusterBindingConditions(clusterBinding *v1alpha1.Clu
 			clusterBinding.Status.LastHeartbeatTime.Time, // do not put "ago" here. It will hotloop.
 		)
 	} else if ago < time.Second*10 {
-		conditions.MarkFalse(clusterBinding,
+		conditions.MarkFalse(
+			clusterBinding,
 			v1alpha1.ClusterBindingConditionHealthy,
 			"HeartbeatTimeDrift",
 			conditionsapi.ConditionSeverityWarning,
 			"Clocks of consumer cluster and service account cluster seem to be off by more than 10s",
 		)
 	} else {
-		conditions.MarkTrue(clusterBinding,
+		conditions.MarkTrue(
+			clusterBinding,
 			v1alpha1.ClusterBindingConditionHealthy,
 		)
 	}

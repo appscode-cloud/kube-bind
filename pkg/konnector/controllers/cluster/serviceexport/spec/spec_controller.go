@@ -166,7 +166,8 @@ func NewController(
 				if err != nil {
 					return nil, err
 				}
-				patched, err := provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Patch(ctx,
+				patched, err := provider.Client.Resource(gvr).Namespace(obj.GetNamespace()).Patch(
+					ctx,
 					obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{FieldManager: applyManager, Force: ptr.To(true)},
 				)
 				if err != nil {
