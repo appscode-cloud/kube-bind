@@ -31,7 +31,8 @@ import (
 var raw embed.FS
 
 func Bootstrap(ctx context.Context, discoveryClient discovery.DiscoveryInterface, dynamicClient dynamic.Interface, image string) error {
-	return bootstrap.Bootstrap(ctx, discoveryClient, dynamicClient, sets.New[string](), raw,
+	return bootstrap.Bootstrap(
+		ctx, discoveryClient, dynamicClient, sets.New[string](), raw,
 		bootstrap.ReplaceOption("IMAGE", image),
 	)
 }

@@ -129,7 +129,8 @@ func (b *BindAPIServiceOptions) createAPIServiceBindings(ctx context.Context, co
 			}
 
 			// best effort status update to have "Pending" in the Ready condition
-			conditions.MarkFalse(created,
+			conditions.MarkFalse(
+				created,
 				conditionsapi.ReadyCondition,
 				"Pending",
 				conditionsapi.ConditionSeverityInfo,
