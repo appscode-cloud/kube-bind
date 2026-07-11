@@ -34,7 +34,7 @@ func IndexServiceBindingByKubeconfigSecret(obj any) ([]string, error) {
 
 func ByServiceBindingKubeconfigSecretKey(binding *kubebindv1alpha1.APIServiceBinding) []string {
 	ps := binding.Spec.Providers
-	var secretRefs []string
+	secretRefs := make([]string, 0, len(ps))
 	for _, p := range ps {
 		secretRefs = append(secretRefs, p.Kubeconfig.Namespace+"/"+p.Kubeconfig.Name)
 	}
